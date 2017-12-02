@@ -18,6 +18,9 @@ import socket
 import time
 
 
+ON = 'on'
+OFF = 'off'
+
 class AESCipher(object):
     def __init__(self, key):
         #self.bs = 32  # 32 work fines for ON, does not work for OFF. Padding different compared to js version https://github.com/codetheweb/tuyapi/
@@ -156,10 +159,8 @@ class OutletDevice(XenonDevice):
     def set_status(self, on, switch=1):
         assert switch == 1
         # open device, send request, then close connection
-        if on:
-            payload = self.generate_payload('on')  # FIXME uses switch!
-        else:
-            payload = self.generate_payload('off')  # FIXME uses switch!
+        command = ON if on else OFF
+        payload = self.generate_payload(command)  # FIXME uses switch!
         #print('payload %r' % payload)
 
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
