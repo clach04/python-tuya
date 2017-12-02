@@ -9,8 +9,35 @@
 # Currently Python 2.x only
 
 
+import base64
+from Crypto import Random
+from Crypto.Cipher import AES
+from hashlib import md5
 import json
 import socket
+import time
+
+
+class AESCipher(object):
+    def __init__(self, key):
+        #self.bs = 32  # both seem to work fine for ON, off is not working. Padding seems different compared to js version https://github.com/codetheweb/tuyapi/
+        self.bs = 16
+        self.key = key
+    def encrypt(self, raw):
+        raw = self._pad(raw)
+        cipher = AES.new(self.key, mode=AES.MODE_ECB, IV='')
+        crypted_text = cipher.encrypt(raw)
+        #print('raw', crypted_text)
+        return base64.b64encode(crypted_text)
+    def decrypt(self, enc):
+        enc = base64.b64decode(enc)
+        cipher = AES.new(self.key, AES.MODE_ECB)
+        return self._unpad(cipher.decrypt(enc)).decode('utf-8')
+    def _pad(self, s):
+        return s + (self.bs - len(s) % self.bs) * chr(self.bs - len(s) % self.bs)
+    @staticmethod
+    def _unpad(s):
+        return s[:-ord(s[len(s)-1:])]
 
 
 def bin2hex(x, pretty=False):
@@ -32,30 +59,16 @@ payload_dict = {
     },
     "on": {
       "prefix": "000055aa00000000000000070000009b",
-      "command": {"devId": "", "dps": {"1": True}, "uid": "", "t": ""},
+      "command": {"devId": "", "dps": {"1": True}, "uid": "", "t": ""},  ## FIXME "1"
       "suffix": "000000000000aa55"
     },
     "off": {
       "prefix": "000055aa0000000000000007000000b3",
-      "command": {"devId": "", "dps": {"1": False}, "uid": "", "t": ""},
+      "command": {"devId": "", "dps": {"1": False}, "uid": "", "t": ""},  ## FIXME "1"
       "suffix": "000000000000aa55"
     }
   }
 }
-
-def generate_payload(device_type, device_id):
-    if 'gwId' in payload_dict[device_type]['status']['command']:
-        payload_dict[device_type]['status']['command']['gwId'] = device_id;
-    if 'devId' in payload_dict[device_type]['status']['command']:
-        payload_dict[device_type]['status']['command']['devId'] = device_id;
-
-    # Create byte buffer from hex data
-    json_payload = json.dumps(payload_dict[device_type]['status']['command'])
-    json_payload = json_payload.replace(' ', '')  # if spaces are not removed device does not respond!
-    buffer = payload_dict[device_type]['status']['prefix'] + bin2hex(json_payload) + payload_dict[device_type]['status']['suffix']
-    buffer = hex2bin(buffer)
-    return buffer
-
 
 class XenonDevice(object):
     def __init__(self, dev_id, address, local_key=None, dev_type=None):
@@ -69,19 +82,53 @@ class XenonDevice(object):
         self.local_key = local_key
         self.dev_type = dev_type
 
-        self.port = 6668  # default  and do not expect caller to pass in
+        self.port = 6668  # default - do not expect caller to pass in
+        self.version = 3.1  # default - do not expect caller to pass in
 
     def generate_payload(self, command):
         if 'gwId' in payload_dict[self.dev_type][command]['command']:
-            payload_dict[self.dev_type][command]['command']['gwId'] = self.id;
+            payload_dict[self.dev_type][command]['command']['gwId'] = self.id
         if 'devId' in payload_dict[self.dev_type][command]['command']:
-            payload_dict[self.dev_type][command]['command']['devId'] = self.id;
+            payload_dict[self.dev_type][command]['command']['devId'] = self.id
+        if 'uid' in payload_dict[self.dev_type][command]['command']:
+            payload_dict[self.dev_type][command]['command']['uid'] = self.id  # still use id, no seperate uid
+        if 't' in payload_dict[self.dev_type][command]['command']:
+            payload_dict[self.dev_type][command]['command']['t'] = int(time.time())
 
         # Create byte buffer from hex data
-        json_payload = json.dumps(payload_dict[self.dev_type][command]['command'])
+        json_payload = json.dumps(payload_dict[self.dev_type][command]['command']).encode('utf-8')
+        #print(json_payload)
         json_payload = json_payload.replace(' ', '')  # if spaces are not removed device does not respond!
+        #print(json_payload)
+
+        if command in ('on', 'off'):
+            # need to encrypt
+            #print('json_payload %r' % json_payload)
+            self.cipher = AESCipher(self.local_key)  # expect to connect and then disconnect to set new
+            json_payload = self.cipher.encrypt(json_payload)
+            #print('crypted json_payload %r' % json_payload)
+            preMd5String = 'data=' + json_payload + '||lpv=' + str(self.version) + '||' + self.local_key
+            #print('preMd5String %r' % preMd5String)
+            m = md5()
+            m.update(preMd5String)
+            #print(repr(m.digest()))
+            hexdigest = m.hexdigest()
+            #print(hexdigest)
+            #print(hexdigest[8:][:16])
+            json_payload = str(self.version) + hexdigest[8:][:16] + json_payload
+            #print('data_to_send')
+            #print(json_payload)
+            #print(bin2hex(json_payload))
+            self.cipher = None  # expect to connect and then disconnect to set new
+
+
         buffer = payload_dict[self.dev_type][command]['prefix'] + bin2hex(json_payload) + payload_dict[self.dev_type][command]['suffix']
         buffer = hex2bin(buffer)
+        #print('command', command)
+        #print('prefix')
+        #print(payload_dict[self.dev_type][command]['prefix'])
+        #print(repr(buffer))
+        #print(bin2hex(buffer, pretty=True))
         return buffer
 
 
@@ -104,3 +151,24 @@ class OutletDevice(XenonDevice):
         #result = data[data.find('{'):data.rfind('}')+1]  # naive marker search, hope neither { nor } occur in header/footer
         result = json.loads(result)
         return result
+
+    def set_status(self, on, switch=1):
+        assert switch == 1
+        # open device, send request, then close connection
+        if on:
+            payload = self.generate_payload('on')  # FIXME uses switch!
+        else:
+            payload = self.generate_payload('off')  # FIXME uses switch!
+        #print('payload %r' % payload)
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((self.address, self.port))
+        s.send(payload)
+        if on:
+            data = s.recv(1024 * 2)
+        else:
+            #data = '{}'
+            data = s.recv(1024 * 2)
+        s.close()
+        return data
+

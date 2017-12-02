@@ -10,7 +10,7 @@ Demo:
     import pytuya
 
     # See https://github.com/codetheweb/tuyapi/blob/master/docs/SETUP.md for how to get device id
-    d = pytuya.OutletDevice('DEVICE_ID_HERE', 'IP_ADDRESS_HERE')
+    d = pytuya.OutletDevice('DEVICE_ID_HERE', 'IP_ADDRESS_HERE', 'LOCAL_KEY_HERE')
     data = d.status()
     print('Dictionary %r' % data)
     print('state (bool, true is ON) %r' % data['dps']['1'])  # Show status of first controlled switch on device
