@@ -17,11 +17,11 @@ import time
 
 
 try:
-    raise ImportError
-    from Crypto.Cipher import AES
+    #raise ImportError
+    from Crypto.Cipher import AES  # PyCrypto
 except ImportError:
     AES = None
-    import pyaes
+    import pyaes  # https://github.com/ricmoo/pyaes
 
 
 
