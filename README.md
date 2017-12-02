@@ -1,6 +1,8 @@
 # python-tuya
 
-Python interface to ESP8266MOD WiFi smart devices from Shenzhen Xenon
+Python interface to ESP8266MOD WiFi smart devices from Shenzhen Xenon.
+If you are using the Jinvoo Smart App, this allows local control over the LAN.
+NOTE requires the devices to have already been activated by Jinvoo Smart App.
 
 All protocol work came from https://github.com/codetheweb/tuyapi from the reverse engineering time and skills of codetheweb and blackrozes.
 
