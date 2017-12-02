@@ -34,14 +34,15 @@ class AESCipher(object):
         self.bs = 16
         self.key = key
     def encrypt(self, raw):
-        raw = self._pad(raw)
         if AES:
+            raw = self._pad(raw)
             cipher = AES.new(self.key, mode=AES.MODE_ECB, IV='')
             crypted_text = cipher.encrypt(raw)
         else:
-            cipher = pyaes.AESModeOfOperationECB(self.key)  # no IV
-            crypted_text = b"".join([cipher.encrypt(bytes(raw[i:i+16])) for i in range(0, len(raw), 16)])
-        #print('raw', crypted_text)
+            cipher = pyaes.blockfeeder.Encrypter(pyaes.AESModeOfOperationECB(self.key))  # no IV, auto pads to 16
+            crypted_text = cipher.feed(raw)
+            crypted_text += cipher.feed()  # flush final block
+        #print('crypted_text %r' % crypted_text)
         return base64.b64encode(crypted_text)
     def decrypt(self, enc):
         enc = base64.b64decode(enc)
