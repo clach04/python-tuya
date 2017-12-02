@@ -4,6 +4,9 @@ Python interface to ESP8266MOD WiFi smart devices from Shenzhen Xenon.
 If you are using the Jinvoo Smart App, this allows local control over the LAN.
 NOTE requires the devices to have already been activated by Jinvoo Smart App.
 
+See https://github.com/codetheweb/tuyapi/blob/master/docs/SETUP.md for how to get device id and local key.
+(the device id can be seen in Jinvoo Smart App, under "Device Info").
+
 All protocol work came from https://github.com/codetheweb/tuyapi from the reverse engineering time and skills of codetheweb and blackrozes.
 
 Known to work with:
@@ -15,7 +18,6 @@ Demo:
 
     import pytuya
 
-    # See https://github.com/codetheweb/tuyapi/blob/master/docs/SETUP.md for how to get device id and local_key
     d = pytuya.OutletDevice('DEVICE_ID_HERE', 'IP_ADDRESS_HERE', 'LOCAL_KEY_HERE')
     data = d.status()  # NOTE this does NOT require a valid key
     print('Dictionary %r' % data)
