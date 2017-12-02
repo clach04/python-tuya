@@ -20,7 +20,7 @@ import time
 
 class AESCipher(object):
     def __init__(self, key):
-        #self.bs = 32  # both seem to work fine for ON, off is not working. Padding seems different compared to js version https://github.com/codetheweb/tuyapi/
+        #self.bs = 32  # 32 work fines for ON, does not work for OFF. Padding different compared to js version https://github.com/codetheweb/tuyapi/
         self.bs = 16
         self.key = key
     def encrypt(self, raw):
@@ -93,7 +93,7 @@ class XenonDevice(object):
         if 'uid' in payload_dict[self.dev_type][command]['command']:
             payload_dict[self.dev_type][command]['command']['uid'] = self.id  # still use id, no seperate uid
         if 't' in payload_dict[self.dev_type][command]['command']:
-            payload_dict[self.dev_type][command]['command']['t'] = int(time.time())
+            payload_dict[self.dev_type][command]['command']['t'] = str(int(time.time()))
 
         # Create byte buffer from hex data
         json_payload = json.dumps(payload_dict[self.dev_type][command]['command']).encode('utf-8')
@@ -129,6 +129,7 @@ class XenonDevice(object):
         #print(payload_dict[self.dev_type][command]['prefix'])
         #print(repr(buffer))
         #print(bin2hex(buffer, pretty=True))
+        #print(bin2hex(buffer, pretty=False))
         return buffer
 
 
@@ -164,11 +165,7 @@ class OutletDevice(XenonDevice):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((self.address, self.port))
         s.send(payload)
-        if on:
-            data = s.recv(1024 * 2)
-        else:
-            #data = '{}'
-            data = s.recv(1024 * 2)
+        data = s.recv(1024)
         s.close()
         return data
 
