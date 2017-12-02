@@ -10,11 +10,19 @@
 
 
 import base64
-from Crypto.Cipher import AES
 from hashlib import md5
 import json
 import socket
 import time
+
+
+try:
+    raise ImportError
+    from Crypto.Cipher import AES
+except ImportError:
+    AES = None
+    import pyaes
+
 
 
 ON = 'on'
@@ -27,8 +35,12 @@ class AESCipher(object):
         self.key = key
     def encrypt(self, raw):
         raw = self._pad(raw)
-        cipher = AES.new(self.key, mode=AES.MODE_ECB, IV='')
-        crypted_text = cipher.encrypt(raw)
+        if AES:
+            cipher = AES.new(self.key, mode=AES.MODE_ECB, IV='')
+            crypted_text = cipher.encrypt(raw)
+        else:
+            cipher = pyaes.AESModeOfOperationECB(self.key)  # no IV
+            crypted_text = b"".join([cipher.encrypt(bytes(raw[i:i+16])) for i in range(0, len(raw), 16)])
         #print('raw', crypted_text)
         return base64.b64encode(crypted_text)
     def decrypt(self, enc):
@@ -175,4 +187,3 @@ class OutletDevice(XenonDevice):
         data = s.recv(1024)
         s.close()
         return data
-
