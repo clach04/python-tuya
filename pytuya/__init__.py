@@ -10,7 +10,6 @@
 
 
 import base64
-from Crypto import Random
 from Crypto.Cipher import AES
 from hashlib import md5
 import json
@@ -88,7 +87,7 @@ class XenonDevice(object):
         self.port = 6668  # default - do not expect caller to pass in
         self.version = 3.1  # default - do not expect caller to pass in
 
-    def generate_payload(self, command):
+    def generate_payload(self, command, dps_id=None):
         if 'gwId' in payload_dict[self.dev_type][command]['command']:
             payload_dict[self.dev_type][command]['command']['gwId'] = self.id
         if 'devId' in payload_dict[self.dev_type][command]['command']:
@@ -97,6 +96,12 @@ class XenonDevice(object):
             payload_dict[self.dev_type][command]['command']['uid'] = self.id  # still use id, no seperate uid
         if 't' in payload_dict[self.dev_type][command]['command']:
             payload_dict[self.dev_type][command]['command']['t'] = str(int(time.time()))
+        if 'dps' in payload_dict[self.dev_type][command]['command']:
+            payload_dict[self.dev_type][command]['command']['dps'] = {}
+
+        if command in (ON, OFF):
+            switch_state = True if command == ON else False
+            payload_dict[self.dev_type][command]['command']['dps'][dps_id] = switch_state
 
         # Create byte buffer from hex data
         json_payload = json.dumps(payload_dict[self.dev_type][command]['command']).encode('utf-8')
@@ -104,7 +109,7 @@ class XenonDevice(object):
         json_payload = json_payload.replace(' ', '')  # if spaces are not removed device does not respond!
         #print(json_payload)
 
-        if command in ('on', 'off'):
+        if command in (ON, OFF):
             # need to encrypt
             #print('json_payload %r' % json_payload)
             self.cipher = AESCipher(self.local_key)  # expect to connect and then disconnect to set new
@@ -157,10 +162,11 @@ class OutletDevice(XenonDevice):
         return result
 
     def set_status(self, on, switch=1):
-        assert switch == 1
         # open device, send request, then close connection
         command = ON if on else OFF
-        payload = self.generate_payload(command)  # FIXME uses switch!
+        if isinstance(switch, int):
+            switch = str(switch)  # index and payload is a string
+        payload = self.generate_payload(command, dps_id=switch)
         #print('payload %r' % payload)
 
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
