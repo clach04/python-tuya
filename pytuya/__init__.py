@@ -6,7 +6,7 @@
 # This would not exist without the protocol reverse engineering from
 # https://github.com/codetheweb/tuyapi by codetheweb and blackrozes
 #
-# Currently Python 2.x only
+# Tested with Python 2.7 and Python 3.6.1 only
 
 
 import base64
@@ -108,6 +108,7 @@ class XenonDevice(object):
         self.id = dev_id
         self.address = address
         self.local_key = local_key
+        self.local_key = local_key.encode('latin1')
         self.dev_type = dev_type
 
         self.port = 6668  # default - do not expect caller to pass in
@@ -142,7 +143,7 @@ class XenonDevice(object):
             self.cipher = AESCipher(self.local_key)  # expect to connect and then disconnect to set new
             json_payload = self.cipher.encrypt(json_payload)
             #print('crypted json_payload %r' % json_payload)
-            preMd5String = 'data=' + json_payload + '||lpv=' + str(self.version) + '||' + self.local_key
+            preMd5String = b'data=' + json_payload + b'||lpv=' + str(self.version).encode('latin1') + b'||' + self.local_key
             #print('preMd5String %r' % preMd5String)
             m = md5()
             m.update(preMd5String)
@@ -150,7 +151,7 @@ class XenonDevice(object):
             hexdigest = m.hexdigest()
             #print(hexdigest)
             #print(hexdigest[8:][:16])
-            json_payload = str(self.version) + hexdigest[8:][:16] + json_payload
+            json_payload = str(self.version).encode('latin1') + hexdigest[8:][:16].encode('latin1') + json_payload
             #print('data_to_send')
             #print(json_payload)
             #print(bin2hex(json_payload))
