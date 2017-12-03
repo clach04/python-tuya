@@ -29,7 +29,7 @@ except ImportError:
 ON = 'on'
 OFF = 'off'
 
-IS_PY3 = sys.version_info[0] == 3
+IS_PY2 = sys.version_info[0] == 2
 
 class AESCipher(object):
     def __init__(self, key):
@@ -63,19 +63,18 @@ def bin2hex(x, pretty=False):
         space = ' '
     else:
         space = ''
-    if IS_PY3:
-        result = ''.join('%02X%s' % (y, space) for y in x)
-    else:
+    if IS_PY2:
         result = ''.join('%02X%s' % (ord(y), space) for y in x)
+    else:
+        result = ''.join('%02X%s' % (y, space) for y in x)
     return result
 
 
 def hex2bin(x):
-    if IS_PY3:
-        return bytes.fromhex(x)
-    else:
-        #return ''.join(chr(int(x[y:y+2], 16)) for y in range(0, len(x), 2))
+    if IS_PY2:
         return x.decode('hex')
+    else:
+        return bytes.fromhex(x)
 
 
 payload_dict = {
