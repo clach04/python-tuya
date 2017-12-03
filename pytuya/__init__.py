@@ -130,6 +130,7 @@ class XenonDevice(object):
 
         if command in (ON, OFF):
             switch_state = True if command == ON else False
+            #print('dps_id  %r' % dps_id )
             payload_dict[self.dev_type][command]['command']['dps'][dps_id] = switch_state
 
         # Create byte buffer from hex data
@@ -137,7 +138,7 @@ class XenonDevice(object):
         #print(json_payload)
         json_payload = json_payload.replace(' ', '')  # if spaces are not removed device does not respond!
         json_payload = json_payload.encode('utf-8')
-        #print(json_payload)
+        #print('json_payload %r' % json_payload)
 
         if command in (ON, OFF):
             # need to encrypt
@@ -156,6 +157,8 @@ class XenonDevice(object):
             json_payload = str(self.version).encode('latin1') + hexdigest[8:][:16].encode('latin1') + json_payload
             #print('data_to_send')
             #print(json_payload)
+            #print('json_payload  %r' % repr(json_payload))
+            #print('json_payload len %r' % len(json_payload))
             #print(bin2hex(json_payload))
             self.cipher = None  # expect to connect and then disconnect to set new
 
@@ -188,6 +191,7 @@ class OutletDevice(XenonDevice):
 
         result = data[20:-8]  # hard coded offsets
         #result = data[data.find('{'):data.rfind('}')+1]  # naive marker search, hope neither { nor } occur in header/footer
+        #print('result %r' % result)
         result = json.loads(result)
         return result
 
