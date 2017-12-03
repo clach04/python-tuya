@@ -113,6 +113,9 @@ class XenonDevice(object):
         self.port = 6668  # default - do not expect caller to pass in
         self.version = 3.1  # default - do not expect caller to pass in
 
+    def __repr__(self):
+        return '%r' % ((self.id, self.address),)  # FIXME can do better than this
+
     def generate_payload(self, command, dps_id=None):
         if 'gwId' in payload_dict[self.dev_type][command]['command']:
             payload_dict[self.dev_type][command]['command']['gwId'] = self.id
