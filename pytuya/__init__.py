@@ -80,17 +80,17 @@ def hex2bin(x):
 payload_dict = {
   "outlet": {
     "status": {
-      "prefix": "000055aa000000000000000a00000046",
+      "prefix": "000055aa000000000000000a000000",
       "command": {"gwId": "", "devId": ""},
       "suffix": "000000000000aa55"
     },
     "on": {
-      "prefix": "000055aa00000000000000070000009b",
+      "prefix": "000055aa0000000000000007000000",
       "command": {"devId": "", "dps": {"1": True}, "uid": "", "t": ""},  ## FIXME "1"
       "suffix": "000000000000aa55"
     },
     "off": {
-      "prefix": "000055aa0000000000000007000000b3",
+      "prefix": "000055aa0000000000000007000000",
       "command": {"devId": "", "dps": {"1": False}, "uid": "", "t": ""},  ## FIXME "1"
       "suffix": "000000000000aa55"
     }
@@ -163,8 +163,14 @@ class XenonDevice(object):
             self.cipher = None  # expect to connect and then disconnect to set new
 
 
-        buffer = payload_dict[self.dev_type][command]['prefix'] + bin2hex(json_payload) + payload_dict[self.dev_type][command]['suffix']
-        buffer = hex2bin(buffer)
+        postfix_payload = hex2bin(bin2hex(json_payload) + payload_dict[self.dev_type][command]['suffix'])
+        #print('postfix_payload %r' % postfix_payload)
+        #print('postfix_payload %r' % len(postfix_payload))
+        #print('postfix_payload %x' % len(postfix_payload))
+        #print('postfix_payload %r' % hex(len(postfix_payload)))
+        postfix_payload_hex_len = '%x' % len(postfix_payload)  # TODO this assumes a single byte 0-255 (0x00-0xff)
+        #print((payload_dict[self.dev_type][command]['prefix'] + postfix_payload_hex_len))
+        buffer = hex2bin(payload_dict[self.dev_type][command]['prefix'] + postfix_payload_hex_len) + postfix_payload
         #print('command', command)
         #print('prefix')
         #print(payload_dict[self.dev_type][command]['prefix'])
@@ -217,15 +223,15 @@ class OutletDevice(XenonDevice):
 
         # Query status, pick last device id as that is probably the timer
         status = self.status()
-        print(status)
+        #print(status)
         devices = status['dps']
-        print(devices)
+        #print(devices)
         devices_numbers = list(devices.keys())
-        print(devices_numbers)
+        #print(devices_numbers)
         devices_numbers.sort()
-        print(devices_numbers)
+        #print(devices_numbers)
         dps_id = devices_numbers[-1]
-        print(dps_id)
+        #print(dps_id)
 
         command = ON  # same for setting timer as for on
         # generate_payload() code
@@ -272,8 +278,10 @@ class OutletDevice(XenonDevice):
             self.cipher = None  # expect to connect and then disconnect to set new
 
 
-        buffer = payload_dict[self.dev_type][command]['prefix'] + bin2hex(json_payload) + payload_dict[self.dev_type][command]['suffix']
-        buffer = hex2bin(buffer)
+        postfix_payload = hex2bin(bin2hex(json_payload) + payload_dict[self.dev_type][command]['suffix'])
+        postfix_payload_hex_len = '%x' % len(postfix_payload)  # TODO this assumes a single byte 0-255 (0x00-0xff)
+        buffer = hex2bin(payload_dict[self.dev_type][command]['prefix'] + postfix_payload_hex_len) + postfix_payload
+
         #print('command', command)
         #print('prefix')
         #print(payload_dict[self.dev_type][command]['prefix'])
