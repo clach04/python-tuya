@@ -209,3 +209,82 @@ class OutletDevice(XenonDevice):
         data = s.recv(1024)
         s.close()
         return data
+
+    def set_timer(self, num_secs):
+        """num_secs should be an integer
+        """
+        # FIXME / TODO replace and refactor, this duplicates alot of generate_payload()
+
+        # Query status, pick last device id as that is probably the timer
+        status = self.status()
+        print(status)
+        devices = status['dps']
+        print(devices)
+        devices_numbers = list(devices.keys())
+        print(devices_numbers)
+        devices_numbers.sort()
+        print(devices_numbers)
+        dps_id = devices_numbers[-1]
+        print(dps_id)
+
+        command = ON  # same for setting timer as for on
+        # generate_payload() code
+        if 'gwId' in payload_dict[self.dev_type][command]['command']:
+            payload_dict[self.dev_type][command]['command']['gwId'] = self.id
+        if 'devId' in payload_dict[self.dev_type][command]['command']:
+            payload_dict[self.dev_type][command]['command']['devId'] = self.id
+        if 'uid' in payload_dict[self.dev_type][command]['command']:
+            payload_dict[self.dev_type][command]['command']['uid'] = self.id  # still use id, no seperate uid
+        if 't' in payload_dict[self.dev_type][command]['command']:
+            payload_dict[self.dev_type][command]['command']['t'] = str(int(time.time()))
+        if 'dps' in payload_dict[self.dev_type][command]['command']:
+            payload_dict[self.dev_type][command]['command']['dps'] = {}
+
+        payload_dict[self.dev_type][command]['command']['dps'][dps_id] = num_secs
+
+        # Create byte buffer from hex data
+        json_payload = json.dumps(payload_dict[self.dev_type][command]['command'])
+        #print(json_payload)
+        json_payload = json_payload.replace(' ', '')  # if spaces are not removed device does not respond!
+        json_payload = json_payload.encode('utf-8')
+        #print('json_payload %r' % json_payload)
+
+        if command in (ON, OFF):
+            # need to encrypt
+            #print('json_payload %r' % json_payload)
+            self.cipher = AESCipher(self.local_key)  # expect to connect and then disconnect to set new
+            json_payload = self.cipher.encrypt(json_payload)
+            #print('crypted json_payload %r' % json_payload)
+            preMd5String = b'data=' + json_payload + b'||lpv=' + str(self.version).encode('latin1') + b'||' + self.local_key
+            #print('preMd5String %r' % preMd5String)
+            m = md5()
+            m.update(preMd5String)
+            #print(repr(m.digest()))
+            hexdigest = m.hexdigest()
+            #print(hexdigest)
+            #print(hexdigest[8:][:16])
+            json_payload = str(self.version).encode('latin1') + hexdigest[8:][:16].encode('latin1') + json_payload
+            #print('data_to_send')
+            #print(json_payload)
+            #print('json_payload  %r' % repr(json_payload))
+            #print('json_payload len %r' % len(json_payload))
+            #print(bin2hex(json_payload))
+            self.cipher = None  # expect to connect and then disconnect to set new
+
+
+        buffer = payload_dict[self.dev_type][command]['prefix'] + bin2hex(json_payload) + payload_dict[self.dev_type][command]['suffix']
+        buffer = hex2bin(buffer)
+        #print('command', command)
+        #print('prefix')
+        #print(payload_dict[self.dev_type][command]['prefix'])
+        #print(repr(buffer))
+        #print(bin2hex(buffer, pretty=True))
+        #print(bin2hex(buffer, pretty=False))
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((self.address, self.port))
+        s.send(buffer)
+        data = s.recv(1024)
+        s.close()
+        return data
+
