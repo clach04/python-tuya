@@ -46,11 +46,21 @@ class AESCipher(object):
             crypted_text = cipher.feed(raw)
             crypted_text += cipher.feed()  # flush final block
         #print('crypted_text %r' % crypted_text)
-        return base64.b64encode(crypted_text)
+        #print('crypted_text (%d) %r' % (len(crypted_text), crypted_text))
+        crypted_text_b64 = base64.b64encode(crypted_text)
+        #print('crypted_text_b64 (%d) %r' % (len(crypted_text_b64), crypted_text_b64))
+        return crypted_text_b64
     def decrypt(self, enc):
         enc = base64.b64decode(enc)
-        cipher = AES.new(self.key, AES.MODE_ECB)
-        return self._unpad(cipher.decrypt(enc)).decode('utf-8')
+        #print('enc (%d) %r' % (len(enc), enc))
+        #enc = self._unpad(enc)
+        #enc = self._pad(enc)
+        #print('upadenc (%d) %r' % (len(enc), enc))
+        cipher = AES.new(self.key, AES.MODE_ECB, IV='')
+        raw = cipher.decrypt(enc)
+        #print('raw (%d) %r' % (len(raw), raw))
+        return self._unpad(raw).decode('utf-8')
+        #return self._unpad(cipher.decrypt(enc)).decode('utf-8')
     def _pad(self, s):
         return s + (self.bs - len(s) % self.bs) * chr(self.bs - len(s) % self.bs)
     @staticmethod
@@ -157,6 +167,7 @@ class XenonDevice(object):
             json_payload = str(self.version).encode('latin1') + hexdigest[8:][:16].encode('latin1') + json_payload
             #print('data_to_send')
             #print(json_payload)
+            #print('crypted json_payload (%d) %r' % (len(json_payload), json_payload))
             #print('json_payload  %r' % repr(json_payload))
             #print('json_payload len %r' % len(json_payload))
             #print(bin2hex(json_payload))
@@ -178,6 +189,7 @@ class XenonDevice(object):
         #print(repr(buffer))
         #print(bin2hex(buffer, pretty=True))
         #print(bin2hex(buffer, pretty=False))
+        #print('full buffer(%d) %r' % (len(buffer), buffer))
         return buffer
 
 
