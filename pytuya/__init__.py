@@ -168,6 +168,7 @@ class XenonDevice(object):
         #print('postfix_payload %r' % len(postfix_payload))
         #print('postfix_payload %x' % len(postfix_payload))
         #print('postfix_payload %r' % hex(len(postfix_payload)))
+        assert len(postfix_payload) <= 0xff
         postfix_payload_hex_len = '%x' % len(postfix_payload)  # TODO this assumes a single byte 0-255 (0x00-0xff)
         #print((payload_dict[self.dev_type][command]['prefix'] + postfix_payload_hex_len))
         buffer = hex2bin(payload_dict[self.dev_type][command]['prefix'] + postfix_payload_hex_len) + postfix_payload
@@ -279,6 +280,7 @@ class OutletDevice(XenonDevice):
 
 
         postfix_payload = hex2bin(bin2hex(json_payload) + payload_dict[self.dev_type][command]['suffix'])
+        assert len(postfix_payload) <= 0xff
         postfix_payload_hex_len = '%x' % len(postfix_payload)  # TODO this assumes a single byte 0-255 (0x00-0xff)
         buffer = hex2bin(payload_dict[self.dev_type][command]['prefix'] + postfix_payload_hex_len) + postfix_payload
 
