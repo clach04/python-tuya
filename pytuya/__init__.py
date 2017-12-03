@@ -13,6 +13,7 @@ import base64
 from hashlib import md5
 import json
 import socket
+import sys
 import time
 
 
@@ -27,6 +28,8 @@ except ImportError:
 
 ON = 'on'
 OFF = 'off'
+
+IS_PY3 = sys.version_info[0] == 3
 
 class AESCipher(object):
     def __init__(self, key):
@@ -57,12 +60,22 @@ class AESCipher(object):
 
 def bin2hex(x, pretty=False):
     if pretty:
-        return ''.join('%02X ' % ord(y) for y in x)
+        space = ' '
     else:
-        return ''.join('%02X' % ord(y) for y in x)
+        space = ''
+    if IS_PY3:
+        result = ''.join('%02X%s' % (y, space) for y in x)
+    else:
+        result = ''.join('%02X%s' % (ord(y), space) for y in x)
+    return result
+
 
 def hex2bin(x):
-    return ''.join(chr(int(x[y:y+2], 16)) for y in range(0, len(x), 2))
+    if IS_PY3:
+        return bytes.fromhex(x)
+    else:
+        #return ''.join(chr(int(x[y:y+2], 16)) for y in range(0, len(x), 2))
+        return x.decode('hex')
 
 
 payload_dict = {
@@ -117,9 +130,10 @@ class XenonDevice(object):
             payload_dict[self.dev_type][command]['command']['dps'][dps_id] = switch_state
 
         # Create byte buffer from hex data
-        json_payload = json.dumps(payload_dict[self.dev_type][command]['command']).encode('utf-8')
+        json_payload = json.dumps(payload_dict[self.dev_type][command]['command'])
         #print(json_payload)
         json_payload = json_payload.replace(' ', '')  # if spaces are not removed device does not respond!
+        json_payload = json_payload.encode('utf-8')
         #print(json_payload)
 
         if command in (ON, OFF):
