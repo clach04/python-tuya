@@ -56,11 +56,17 @@ class AESCipher(object):
         #enc = self._unpad(enc)
         #enc = self._pad(enc)
         #print('upadenc (%d) %r' % (len(enc), enc))
-        cipher = AES.new(self.key, AES.MODE_ECB, IV='')
-        raw = cipher.decrypt(enc)
-        #print('raw (%d) %r' % (len(raw), raw))
-        return self._unpad(raw).decode('utf-8')
-        #return self._unpad(cipher.decrypt(enc)).decode('utf-8')
+        if AES:
+            cipher = AES.new(self.key, AES.MODE_ECB, IV='')
+            raw = cipher.decrypt(enc)
+            #print('raw (%d) %r' % (len(raw), raw))
+            return self._unpad(raw).decode('utf-8')
+            #return self._unpad(cipher.decrypt(enc)).decode('utf-8')
+        else:
+            cipher = pyaes.blockfeeder.Decrypter(pyaes.AESModeOfOperationECB(self.key))  # no IV, auto pads to 16
+            plain_text = cipher.feed(enc)
+            plain_text += cipher.feed()  # flush final block
+            return plain_text
     def _pad(self, s):
         return s + (self.bs - len(s) % self.bs) * chr(self.bs - len(s) % self.bs)
     @staticmethod
