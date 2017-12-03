@@ -80,18 +80,18 @@ def hex2bin(x):
 payload_dict = {
   "outlet": {
     "status": {
-      "prefix": "000055aa000000000000000a000000",
+      "prefix": "000055aa000000000000000a000000",  # Next byte is length of remaining payload, i.e. command + suffix (unclear if multiple bytes used for length)
       "command": {"gwId": "", "devId": ""},
       "suffix": "000000000000aa55"
     },
     "on": {
-      "prefix": "000055aa0000000000000007000000",
-      "command": {"devId": "", "dps": {"1": True}, "uid": "", "t": ""},  ## FIXME "1"
+      "prefix": "000055aa0000000000000007000000",  # Next byte is length of remaining payload, i.e. command + suffix (unclear if multiple bytes used for length)
+      "command": {"devId": "", "dps": {"1": True}, "uid": "", "t": ""},  # NOTE dps.1 is a sample and will be overwritten
       "suffix": "000000000000aa55"
     },
     "off": {
-      "prefix": "000055aa0000000000000007000000",
-      "command": {"devId": "", "dps": {"1": False}, "uid": "", "t": ""},  ## FIXME "1"
+      "prefix": "000055aa0000000000000007000000",  # Next byte is length of remaining payload, i.e. command + suffix (unclear if multiple bytes used for length)
+      "command": {"devId": "", "dps": {"1": False}, "uid": "", "t": ""},  # NOTE dps.1 is a sample and will be overwritten
       "suffix": "000000000000aa55"
     }
   }
