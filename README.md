@@ -29,3 +29,8 @@ Demo:
     if data:
         print('set_status() result %r' % data)
 
+    # on a switch that has 4 controllable ports, turn the fourth OFF (1 is the first)
+    data = d.set_status(False, 4)
+    if data:
+        print('set_status() result %r' % data)
+        print('set_status() extrat %r' % data[20:-8])
