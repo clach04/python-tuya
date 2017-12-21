@@ -35,3 +35,9 @@ Demo:
     if data:
         print('set_status() result %r' % data)
         print('set_status() extrat %r' % data[20:-8])
+
+### Related Projects
+
+  * https://github.com/codetheweb/tuyapi node.js
+  * https://github.com/Marcus-L/m4rcus.TuyaCore - .NET
+  
