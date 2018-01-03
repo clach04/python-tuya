@@ -34,3 +34,5 @@ Demo:
     if data:
         print('set_status() result %r' % data)
         print('set_status() extrat %r' % data[20:-8])
+
+TODO demo timer (with comment not all devices support this, one way to check, is to check Jinvoo Smart App and see if there is a clock icon that is not dimmed out).
