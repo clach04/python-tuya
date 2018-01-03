@@ -12,6 +12,7 @@
 import base64
 from hashlib import md5
 import json
+import logging
 import socket
 import sys
 import time
@@ -19,12 +20,23 @@ import time
 
 try:
     #raise ImportError
+    import Crypto
     from Crypto.Cipher import AES  # PyCrypto
 except ImportError:
     AES = None
     import pyaes  # https://github.com/ricmoo/pyaes
 
 
+log = logging.getLogger(__name__)
+logging.basicConfig()
+#log.setLevel(level=logging.DEBUG)  # Debug hack!
+
+if AES is None:
+    log.debug('Using pyaes version %r', pyaes.VERSION)
+    log.debug('Using pyaes from %r', pyaes.__file__)
+else:
+    log.debug('Using PyCrypto %r', Crypto.version_info)
+    log.debug('Using PyCrypto from %r', Crypto.__file__)
 
 ON = 'on'
 OFF = 'off'
