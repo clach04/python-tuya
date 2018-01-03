@@ -4,6 +4,7 @@ Python Python 2.7 and Python 3.6.1 interface to ESP8266MOD WiFi smart devices fr
 If you are using the Jinvoo Smart App, this allows local control over the LAN.
 NOTE requires the devices to have already been activated by Jinvoo Smart App.
 
+https://github.com/clach04/python-tuya/wiki has background innformation.
 See https://github.com/codetheweb/tuyapi/blob/master/docs/SETUP.md for how to get device id and local key.
 (the device id can be seen in Jinvoo Smart App, under "Device Info").
 
@@ -36,3 +37,8 @@ Demo:
         print('set_status() extrat %r' % data[20:-8])
 
 TODO demo timer (with comment not all devices support this, one way to check, is to check Jinvoo Smart App and see if there is a clock icon that is not dimmed out).
+
+### Related Projects
+
+  * https://github.com/codetheweb/tuyapi node.js
+  * https://github.com/Marcus-L/m4rcus.TuyaCore - .NET
