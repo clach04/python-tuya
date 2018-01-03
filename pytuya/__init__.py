@@ -31,6 +31,7 @@ log = logging.getLogger(__name__)
 logging.basicConfig()
 #log.setLevel(level=logging.DEBUG)  # Debug hack!
 
+log.debug('Python %s on %s', sys.version, sys.platform)
 if AES is None:
     log.debug('Using pyaes version %r', pyaes.VERSION)
     log.debug('Using pyaes from %r', pyaes.__file__)
