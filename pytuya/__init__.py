@@ -227,8 +227,10 @@ class OutletDevice(XenonDevice):
         s.send(payload)
         data = s.recv(1024)
         s.close()
+        log.debug('raw data=%r', data)
 
         result = data[20:-8]  # hard coded offsets
+        log.debug('result=%r', result)
         #result = data[data.find('{'):data.rfind('}')+1]  # naive marker search, hope neither { nor } occur in header/footer
         #print('result %r' % result)
         result = json.loads(result)
