@@ -42,6 +42,8 @@ else:
 ON = 'on'
 OFF = 'off'
 
+PROTOCOL_VERSION_BYTES = b'3.1'
+
 IS_PY2 = sys.version_info[0] == 2
 
 class AESCipher(object):
@@ -141,7 +143,6 @@ class XenonDevice(object):
         self.dev_type = dev_type
 
         self.port = 6668  # default - do not expect caller to pass in
-        self.version = 3.1  # default - do not expect caller to pass in
 
     def __repr__(self):
         return '%r' % ((self.id, self.address),)  # FIXME can do better than this
@@ -176,7 +177,7 @@ class XenonDevice(object):
             self.cipher = AESCipher(self.local_key)  # expect to connect and then disconnect to set new
             json_payload = self.cipher.encrypt(json_payload)
             #print('crypted json_payload %r' % json_payload)
-            preMd5String = b'data=' + json_payload + b'||lpv=' + str(self.version).encode('latin1') + b'||' + self.local_key
+            preMd5String = b'data=' + json_payload + b'||lpv=' + PROTOCOL_VERSION_BYTES + b'||' + self.local_key
             #print('preMd5String %r' % preMd5String)
             m = md5()
             m.update(preMd5String)
@@ -184,7 +185,7 @@ class XenonDevice(object):
             hexdigest = m.hexdigest()
             #print(hexdigest)
             #print(hexdigest[8:][:16])
-            json_payload = str(self.version).encode('latin1') + hexdigest[8:][:16].encode('latin1') + json_payload
+            json_payload = PROTOCOL_VERSION_BYTES + hexdigest[8:][:16].encode('latin1') + json_payload
             #print('data_to_send')
             #print(json_payload)
             #print('crypted json_payload (%d) %r' % (len(json_payload), json_payload))
@@ -296,7 +297,7 @@ class OutletDevice(XenonDevice):
             self.cipher = AESCipher(self.local_key)  # expect to connect and then disconnect to set new
             json_payload = self.cipher.encrypt(json_payload)
             #print('crypted json_payload %r' % json_payload)
-            preMd5String = b'data=' + json_payload + b'||lpv=' + str(self.version).encode('latin1') + b'||' + self.local_key
+            preMd5String = b'data=' + json_payload + b'||lpv=' + PROTOCOL_VERSION_BYTES + b'||' + self.local_key
             #print('preMd5String %r' % preMd5String)
             m = md5()
             m.update(preMd5String)
@@ -304,7 +305,7 @@ class OutletDevice(XenonDevice):
             hexdigest = m.hexdigest()
             #print(hexdigest)
             #print(hexdigest[8:][:16])
-            json_payload = str(self.version).encode('latin1') + hexdigest[8:][:16].encode('latin1') + json_payload
+            json_payload = PROTOCOL_VERSION_BYTES + hexdigest[8:][:16].encode('latin1') + json_payload
             #print('data_to_send')
             #print(json_payload)
             #print('json_payload  %r' % repr(json_payload))
