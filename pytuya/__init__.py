@@ -52,7 +52,7 @@ class AESCipher(object):
     def encrypt(self, raw):
         if Crypto:
             raw = self._pad(raw)
-            cipher = AES.new(self.key, mode=AES.MODE_ECB, IV='')
+            cipher = AES.new(self.key, mode=AES.MODE_ECB)
             crypted_text = cipher.encrypt(raw)
         else:
             _ = self._pad(raw)
@@ -71,7 +71,7 @@ class AESCipher(object):
         #enc = self._pad(enc)
         #print('upadenc (%d) %r' % (len(enc), enc))
         if Crypto:
-            cipher = AES.new(self.key, AES.MODE_ECB, IV='')
+            cipher = AES.new(self.key, AES.MODE_ECB)
             raw = cipher.decrypt(enc)
             #print('raw (%d) %r' % (len(raw), raw))
             return self._unpad(raw).decode('utf-8')
