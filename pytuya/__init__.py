@@ -234,7 +234,22 @@ class OutletDevice(XenonDevice):
         log.debug('result=%r', result)
         #result = data[data.find('{'):data.rfind('}')+1]  # naive marker search, hope neither { nor } occur in header/footer
         #print('result %r' % result)
-        result = json.loads(result)
+        if result.startswith(b'{'):
+            # this is the regular expected code path
+            result = json.loads(result)
+        elif result.startswith(PROTOCOL_VERSION_BYTES):
+            # got an encrypted payload, happens occasionaly
+            # expect resulting json to look similar to:: {"devId":"ID","dps":{"":true,"2":0},"t":EPOCH_SECS,"s":3_DIGIT_NUM}
+            # NOTE dps.2 may or may not be present
+            result = result[len(PROTOCOL_VERSION_BYTES):]  # remove version header
+            result = result[16:]  # remove (what I'm guessing, but not confirmed is) 16-bytes of MD5 hexdigest of payload
+            cipher = AESCipher(self.local_key)
+            result = cipher.decrypt(result)
+            log.debug('decrypted result=%r', result)
+            result = json.loads(result)
+        else:
+            log.error('Unexpected status() payload=%r', result)
+
         return result
 
     def set_status(self, on, switch=1):
