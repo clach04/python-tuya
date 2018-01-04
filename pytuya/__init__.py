@@ -82,7 +82,7 @@ class AESCipher(object):
             plain_text += cipher.feed()  # flush final block
             return plain_text
     def _pad(self, s):
-        return s + (self.bs - len(s) % self.bs) * chr(self.bs - len(s) % self.bs)
+        return s + (self.bs - len(s) % self.bs) * bytes(self.bs - len(s) % self.bs)
     @staticmethod
     def _unpad(s):
         return s[:-ord(s[len(s)-1:])]
