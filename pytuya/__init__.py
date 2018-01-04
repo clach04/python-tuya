@@ -24,7 +24,7 @@ try:
     from Crypto.Cipher import AES  # PyCrypto
     from Crypto.Util import Padding
 except ImportError:
-    AES = None
+    Crypto = AES = None
     import pyaes  # https://github.com/ricmoo/pyaes
 
 
@@ -33,7 +33,7 @@ logging.basicConfig()
 #log.setLevel(level=logging.DEBUG)  # Debug hack!
 
 log.debug('Python %s on %s', sys.version, sys.platform)
-if AES is None:
+if Crypto is None:
     log.debug('Using pyaes version %r', pyaes.VERSION)
     log.debug('Using pyaes from %r', pyaes.__file__)
 else:
@@ -51,7 +51,7 @@ class AESCipher(object):
         self.bs = 16
         self.key = key
     def encrypt(self, raw):
-        if AES:
+        if Crypto:
             raw = Padding.pad(raw, self.bs)
             cipher = AES.new(self.key, mode=AES.MODE_ECB)
             crypted_text = cipher.encrypt(raw)
@@ -70,8 +70,8 @@ class AESCipher(object):
         #enc = self._unpad(enc)
         #enc = self._pad(enc)
         #print('upadenc (%d) %r' % (len(enc), enc))
-        if AES:
-            cipher = AES.new(self.key, AES.MODE_ECB, IV='')
+        if Crypto:
+            cipher = AES.new(self.key, AES.MODE_ECB)
             raw = cipher.decrypt(enc)
             #print('raw (%d) %r' % (len(raw), raw))
             return Padding.unpad(raw, self.bs).decode('utf-8')
@@ -163,7 +163,7 @@ class XenonDevice(object):
         #print(json_payload)
         json_payload = json_payload.replace(' ', '')  # if spaces are not removed device does not respond!
         json_payload = json_payload.encode('utf-8')
-        #print('json_payload %r' % json_payload)
+        log.debug('json_payload=%r', json_payload)
 
         if command in (ON, OFF):
             # need to encrypt
