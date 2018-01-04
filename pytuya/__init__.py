@@ -22,6 +22,7 @@ try:
     #raise ImportError
     import Crypto
     from Crypto.Cipher import AES  # PyCrypto
+    from Crypto.Util import Padding
 except ImportError:
     AES = None
     import pyaes  # https://github.com/ricmoo/pyaes
@@ -51,8 +52,8 @@ class AESCipher(object):
         self.key = key
     def encrypt(self, raw):
         if AES:
-            raw = self._pad(raw)
-            cipher = AES.new(self.key, mode=AES.MODE_ECB, IV='')
+            raw = Padding.pad(raw, self.bs)
+            cipher = AES.new(self.key, mode=AES.MODE_ECB)
             crypted_text = cipher.encrypt(raw)
         else:
             cipher = pyaes.blockfeeder.Encrypter(pyaes.AESModeOfOperationECB(self.key))  # no IV, auto pads to 16
@@ -73,18 +74,13 @@ class AESCipher(object):
             cipher = AES.new(self.key, AES.MODE_ECB, IV='')
             raw = cipher.decrypt(enc)
             #print('raw (%d) %r' % (len(raw), raw))
-            return self._unpad(raw).decode('utf-8')
+            return Padding.unpad(raw, self.bs).decode('utf-8')
             #return self._unpad(cipher.decrypt(enc)).decode('utf-8')
         else:
             cipher = pyaes.blockfeeder.Decrypter(pyaes.AESModeOfOperationECB(self.key))  # no IV, auto pads to 16
             plain_text = cipher.feed(enc)
             plain_text += cipher.feed()  # flush final block
             return plain_text
-    def _pad(self, s):
-        return s + (self.bs - len(s) % self.bs) * chr(self.bs - len(s) % self.bs)
-    @staticmethod
-    def _unpad(s):
-        return s[:-ord(s[len(s)-1:])]
 
 
 def bin2hex(x, pretty=False):
