@@ -38,6 +38,15 @@ Demo:
 
 TODO demo timer (with comment not all devices support this, one way to check, is to check Jinvoo Smart App and see if there is a clock icon that is not dimmed out).
 
+
+Works with:
+
+  * PyCrypt
+  * pycryptodome (thanks to @nijave)
+  * pyaes
+
+TODO requirements.txt
+
 ### Related Projects
 
   * https://github.com/codetheweb/tuyapi node.js
