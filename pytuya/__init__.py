@@ -238,7 +238,7 @@ class OutletDevice(XenonDevice):
             # this is the regular expected code path
             result = json.loads(result)
         elif result.startswith(PROTOCOL_VERSION_BYTES):
-            # got an encrypted payload, happens occasionaly
+            # got an encrypted payload, happens occasionally
             # expect resulting json to look similar to:: {"devId":"ID","dps":{"1":true,"2":0},"t":EPOCH_SECS,"s":3_DIGIT_NUM}
             # NOTE dps.2 may or may not be present
             result = result[len(PROTOCOL_VERSION_BYTES):]  # remove version header
