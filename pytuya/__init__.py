@@ -347,10 +347,7 @@ class OutletDevice(XenonDevice):
         #print(bin2hex(buffer, pretty=True))
         #print(bin2hex(buffer, pretty=False))
 
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((self.address, self.port))
-        s.send(buffer)
-        data = s.recv(1024)
-        s.close()
+        data = self._send_receive(buffer)
+        log.debug('set_timer received data=%r', data)
         return data
 
