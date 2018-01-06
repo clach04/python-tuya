@@ -28,7 +28,7 @@ except ImportError:
 
 
 log = logging.getLogger(__name__)
-logging.basicConfig()
+logging.basicConfig()  # TODO include function name/line numbers in log
 #log.setLevel(level=logging.DEBUG)  # Debug hack!
 
 log.debug('Python %s on %s', sys.version, sys.platform)
@@ -268,11 +268,9 @@ class OutletDevice(XenonDevice):
         payload = self.generate_payload(command, dps_id=switch)
         #print('payload %r' % payload)
 
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((self.address, self.port))
-        s.send(payload)
-        data = s.recv(1024)
-        s.close()
+        data = self._send_receive(payload)
+        log.debug('set_status received data=%r', data)
+
         return data
 
     def set_timer(self, num_secs):
