@@ -253,6 +253,8 @@ class OutletDevice(XenonDevice):
         return result
 
     def set_status(self, on, switch=1):
+        """on is a bool
+        """
         # open device, send request, then close connection
         command = ON if on else OFF
         if isinstance(switch, int):
