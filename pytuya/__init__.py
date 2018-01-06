@@ -147,6 +147,16 @@ class XenonDevice(object):
     def __repr__(self):
         return '%r' % ((self.id, self.address),)  # FIXME can do better than this
 
+    def _send_receive(self, payload):
+        """Send single buffer `payload` and receivea single buffer
+        """
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((self.address, self.port))
+        s.send(payload)
+        data = s.recv(1024)
+        s.close()
+        return data
+
     def generate_payload(self, command, dps_id=None):
         if 'gwId' in payload_dict[self.dev_type][command]['command']:
             payload_dict[self.dev_type][command]['command']['gwId'] = self.id
@@ -223,12 +233,8 @@ class OutletDevice(XenonDevice):
         # open device, send request, then close connection
         payload = self.generate_payload('status')
 
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((self.address, self.port))
-        s.send(payload)
-        data = s.recv(1024)
-        s.close()
-        log.debug('raw data=%r', data)
+        data = self._send_receive(payload)
+        log.debug('status received data=%r', data)
 
         result = data[20:-8]  # hard coded offsets
         log.debug('result=%r', result)
