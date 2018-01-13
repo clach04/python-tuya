@@ -109,24 +109,23 @@ def hex2bin(x):
     else:
         return bytes.fromhex(x)
 
-
+# This is intended to match requests.json payload at https://github.com/codetheweb/tuyapi
 payload_dict = {
   "outlet": {
     "status": {
-      "prefix": "000055aa000000000000000a000000",  # Next byte is length of remaining payload, i.e. command + suffix (unclear if multiple bytes used for length)
+      "hexByte": "0a",
       "command": {"gwId": "", "devId": ""},
-      "suffix": "000000000000aa55"
     },
     "on": {
-      "prefix": "000055aa0000000000000007000000",  # Next byte is length of remaining payload, i.e. command + suffix (unclear if multiple bytes used for length)
+      "hexByte": "07",
       "command": {"devId": "", "dps": {"1": True}, "uid": "", "t": ""},  # NOTE dps.1 is a sample and will be overwritten
-      "suffix": "000000000000aa55"
     },
     "off": {
-      "prefix": "000055aa0000000000000007000000",  # Next byte is length of remaining payload, i.e. command + suffix (unclear if multiple bytes used for length)
+      "hexByte": "07",
       "command": {"devId": "", "dps": {"1": False}, "uid": "", "t": ""},  # NOTE dps.1 is a sample and will be overwritten
-      "suffix": "000000000000aa55"
-    }
+    },
+    "prefix": "000055aa00000000000000",    # Next byte is command byte ("hexByte") some zero padding, then length of remaining payload, i.e. command + suffix (unclear if multiple bytes used for length, zero padding implies could be more than one byte)
+    "suffix": "000000000000aa55"
   }
 }
 
@@ -206,15 +205,14 @@ class XenonDevice(object):
             self.cipher = None  # expect to connect and then disconnect to set new
 
 
-        postfix_payload = hex2bin(bin2hex(json_payload) + payload_dict[self.dev_type][command]['suffix'])
+        postfix_payload = hex2bin(bin2hex(json_payload) + payload_dict[self.dev_type]['suffix'])
         #print('postfix_payload %r' % postfix_payload)
         #print('postfix_payload %r' % len(postfix_payload))
         #print('postfix_payload %x' % len(postfix_payload))
         #print('postfix_payload %r' % hex(len(postfix_payload)))
         assert len(postfix_payload) <= 0xff
         postfix_payload_hex_len = '%x' % len(postfix_payload)  # TODO this assumes a single byte 0-255 (0x00-0xff)
-        #print((payload_dict[self.dev_type][command]['prefix'] + postfix_payload_hex_len))
-        buffer = hex2bin(payload_dict[self.dev_type][command]['prefix'] + postfix_payload_hex_len) + postfix_payload
+        buffer = hex2bin(payload_dict[self.dev_type]['prefix'] + payload_dict[self.dev_type][command]['hexByte'] + '000000' + postfix_payload_hex_len) + postfix_payload
         #print('command', command)
         #print('prefix')
         #print(payload_dict[self.dev_type][command]['prefix'])
@@ -336,10 +334,11 @@ class OutletDevice(XenonDevice):
             self.cipher = None  # expect to connect and then disconnect to set new
 
 
-        postfix_payload = hex2bin(bin2hex(json_payload) + payload_dict[self.dev_type][command]['suffix'])
+        postfix_payload = hex2bin(bin2hex(json_payload) + payload_dict[self.dev_type]['suffix'])
         assert len(postfix_payload) <= 0xff
         postfix_payload_hex_len = '%x' % len(postfix_payload)  # TODO this assumes a single byte 0-255 (0x00-0xff)
-        buffer = hex2bin(payload_dict[self.dev_type][command]['prefix'] + postfix_payload_hex_len) + postfix_payload
+        buffer = hex2bin(payload_dict[self.dev_type]['prefix'] + payload_dict[self.dev_type][command]['hexByte'] + '000000' + postfix_payload_hex_len) + postfix_payload
+
 
         #print('command', command)
         #print('prefix')
