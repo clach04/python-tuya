@@ -157,7 +157,7 @@ class XenonDevice(object):
         s.close()
         return data
 
-    def generate_payload(self, command, dps_id=None):
+    def generate_payload(self, command, dps_id=None, value=None):
         if 'gwId' in payload_dict[self.dev_type][command]['command']:
             payload_dict[self.dev_type][command]['command']['gwId'] = self.id
         if 'devId' in payload_dict[self.dev_type][command]['command']:
@@ -169,10 +169,11 @@ class XenonDevice(object):
         if 'dps' in payload_dict[self.dev_type][command]['command']:
             payload_dict[self.dev_type][command]['command']['dps'] = {}
 
-        if command in (ON, OFF):
-            switch_state = True if command == ON else False
-            #print('dps_id  %r' % dps_id )
-            payload_dict[self.dev_type][command]['command']['dps'][dps_id] = switch_state
+        if command in (SET, ON, OFF):
+            if value is None:
+                value = True if command == ON else False
+            print(payload_dict[self.dev_type][command])
+            payload_dict[self.dev_type][command]['command']['dps'][dps_id] = value
 
         # Create byte buffer from hex data
         json_payload = json.dumps(payload_dict[self.dev_type][command]['command'])
@@ -275,79 +276,18 @@ class OutletDevice(XenonDevice):
     def set_timer(self, num_secs):
         """num_secs should be an integer
         """
-        # FIXME / TODO replace and refactor, this duplicates alot of generate_payload()
+        # FIXME / TODO support schemas? Accept timer id number as parameter?
 
-        # Query status, pick last device id as that is probably the timer
+        # Dumb heuristic; Query status, pick last device id as that is probably the timer
         status = self.status()
-        #print(status)
         devices = status['dps']
-        #print(devices)
         devices_numbers = list(devices.keys())
-        #print(devices_numbers)
         devices_numbers.sort()
-        #print(devices_numbers)
         dps_id = devices_numbers[-1]
-        #print(dps_id)
-
         command = SET
-        # generate_payload() code
-        if 'gwId' in payload_dict[self.dev_type][command]['command']:
-            payload_dict[self.dev_type][command]['command']['gwId'] = self.id
-        if 'devId' in payload_dict[self.dev_type][command]['command']:
-            payload_dict[self.dev_type][command]['command']['devId'] = self.id
-        if 'uid' in payload_dict[self.dev_type][command]['command']:
-            payload_dict[self.dev_type][command]['command']['uid'] = self.id  # still use id, no seperate uid
-        if 't' in payload_dict[self.dev_type][command]['command']:
-            payload_dict[self.dev_type][command]['command']['t'] = str(int(time.time()))
-        if 'dps' in payload_dict[self.dev_type][command]['command']:
-            payload_dict[self.dev_type][command]['command']['dps'] = {}
+        payload = self.generate_payload(command, dps_id=dps_id, value=num_secs)
 
-        payload_dict[self.dev_type][command]['command']['dps'][dps_id] = num_secs
-
-        # Create byte buffer from hex data
-        json_payload = json.dumps(payload_dict[self.dev_type][command]['command'])
-        #print(json_payload)
-        json_payload = json_payload.replace(' ', '')  # if spaces are not removed device does not respond!
-        json_payload = json_payload.encode('utf-8')
-        #print('json_payload %r' % json_payload)
-
-        if command in (ON, OFF):
-            # need to encrypt
-            #print('json_payload %r' % json_payload)
-            self.cipher = AESCipher(self.local_key)  # expect to connect and then disconnect to set new
-            json_payload = self.cipher.encrypt(json_payload)
-            #print('crypted json_payload %r' % json_payload)
-            preMd5String = b'data=' + json_payload + b'||lpv=' + PROTOCOL_VERSION_BYTES + b'||' + self.local_key
-            #print('preMd5String %r' % preMd5String)
-            m = md5()
-            m.update(preMd5String)
-            #print(repr(m.digest()))
-            hexdigest = m.hexdigest()
-            #print(hexdigest)
-            #print(hexdigest[8:][:16])
-            json_payload = PROTOCOL_VERSION_BYTES + hexdigest[8:][:16].encode('latin1') + json_payload
-            #print('data_to_send')
-            #print(json_payload)
-            #print('json_payload  %r' % repr(json_payload))
-            #print('json_payload len %r' % len(json_payload))
-            #print(bin2hex(json_payload))
-            self.cipher = None  # expect to connect and then disconnect to set new
-
-
-        postfix_payload = hex2bin(bin2hex(json_payload) + payload_dict[self.dev_type]['suffix'])
-        assert len(postfix_payload) <= 0xff
-        postfix_payload_hex_len = '%x' % len(postfix_payload)  # TODO this assumes a single byte 0-255 (0x00-0xff)
-        buffer = hex2bin(payload_dict[self.dev_type]['prefix'] + payload_dict[self.dev_type][command]['hexByte'] + '000000' + postfix_payload_hex_len) + postfix_payload
-
-
-        #print('command', command)
-        #print('prefix')
-        #print(payload_dict[self.dev_type][command]['prefix'])
-        #print(repr(buffer))
-        #print(bin2hex(buffer, pretty=True))
-        #print(bin2hex(buffer, pretty=False))
-
-        data = self._send_receive(buffer)
+        data = self._send_receive(payload)
         log.debug('set_timer received data=%r', data)
         return data
 
