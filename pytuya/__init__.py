@@ -39,7 +39,7 @@ else:
     log.debug('Using PyCrypto %r', Crypto.version_info)
     log.debug('Using PyCrypto from %r', Crypto.__file__)
 
-ON = 'on'
+ON = SET = 'set'
 OFF = 'off'
 
 PROTOCOL_VERSION_BYTES = b'3.1'
@@ -116,7 +116,7 @@ payload_dict = {
       "hexByte": "0a",
       "command": {"gwId": "", "devId": ""},
     },
-    "on": {
+    "set": {
       "hexByte": "07",
       "command": {"devId": "", "dps": {"1": True}, "uid": "", "t": ""},  # NOTE dps.1 is a sample and will be overwritten
     },
@@ -289,7 +289,7 @@ class OutletDevice(XenonDevice):
         dps_id = devices_numbers[-1]
         #print(dps_id)
 
-        command = ON  # same for setting timer as for on
+        command = SET
         # generate_payload() code
         if 'gwId' in payload_dict[self.dev_type][command]['command']:
             payload_dict[self.dev_type][command]['command']['gwId'] = self.id
