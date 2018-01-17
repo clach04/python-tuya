@@ -114,15 +114,11 @@ payload_dict = {
   "outlet": {
     "status": {
       "hexByte": "0a",
-      "command": {"gwId": "", "devId": ""},
+      "command": {"gwId": "", "devId": ""}
     },
     "set": {
       "hexByte": "07",
-      "command": {"devId": "", "dps": {"1": True}, "uid": "", "t": ""},  # NOTE dps.1 is a sample and will be overwritten
-    },
-    "off": {
-      "hexByte": "07",
-      "command": {"devId": "", "dps": {"1": False}, "uid": "", "t": ""},  # NOTE dps.1 is a sample and will be overwritten
+      "command": {"devId": "", "uid": "", "t": ""}
     },
     "prefix": "000055aa00000000000000",    # Next byte is command byte ("hexByte") some zero padding, then length of remaining payload, i.e. command + suffix (unclear if multiple bytes used for length, zero padding implies could be more than one byte)
     "suffix": "000000000000aa55"
@@ -161,7 +157,7 @@ class XenonDevice(object):
         Send single buffer `payload` and receive a single buffer.
         
         Args:
-            payload: Data to send.
+            payload(bytes): Data to send.
         """
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((self.address, self.port))
@@ -170,31 +166,38 @@ class XenonDevice(object):
         s.close()
         return data
 
-    def generate_payload(self, command, dps_id=None, value=None):
-        if 'gwId' in payload_dict[self.dev_type][command]['command']:
-            payload_dict[self.dev_type][command]['command']['gwId'] = self.id
-        if 'devId' in payload_dict[self.dev_type][command]['command']:
-            payload_dict[self.dev_type][command]['command']['devId'] = self.id
-        if 'uid' in payload_dict[self.dev_type][command]['command']:
-            payload_dict[self.dev_type][command]['command']['uid'] = self.id  # still use id, no seperate uid
-        if 't' in payload_dict[self.dev_type][command]['command']:
-            payload_dict[self.dev_type][command]['command']['t'] = str(int(time.time()))
-        if 'dps' in payload_dict[self.dev_type][command]['command']:
-            payload_dict[self.dev_type][command]['command']['dps'] = {}
+    def generate_payload(self, command, data=None):
+        """
+        Generate the payload to send.
 
-        if command in (SET, ON, OFF):
-            if value is None:
-                value = True if command == ON else False
-            payload_dict[self.dev_type][command]['command']['dps'][dps_id] = value
+        Args:
+            command(str): The type of command.
+                This is one of the entries from payload_dict
+            data(dict, optional): The data to be send.
+                This is what will be passed via the 'dps' entry
+        """
+        json_data = payload_dict[self.dev_type][command]['command']
+
+        if 'gwId' in json_data:
+            json_data['gwId'] = self.id
+        if 'devId' in json_data:
+            json_data['devId'] = self.id
+        if 'uid' in json_data:
+            json_data['uid'] = self.id  # still use id, no seperate uid
+        if 't' in json_data:
+            json_data['t'] = str(int(time.time()))
+
+        if data is not None:
+            json_data['dps'] = data
 
         # Create byte buffer from hex data
-        json_payload = json.dumps(payload_dict[self.dev_type][command]['command'])
+        json_payload = json.dumps(json_data)
         #print(json_payload)
         json_payload = json_payload.replace(' ', '')  # if spaces are not removed device does not respond!
         json_payload = json_payload.encode('utf-8')
         log.debug('json_payload=%r', json_payload)
 
-        if command in (ON, OFF):
+        if command == ON:
             # need to encrypt
             #print('json_payload %r' % json_payload)
             self.cipher = AESCipher(self.local_key)  # expect to connect and then disconnect to set new
@@ -225,7 +228,10 @@ class XenonDevice(object):
         #print('postfix_payload %r' % hex(len(postfix_payload)))
         assert len(postfix_payload) <= 0xff
         postfix_payload_hex_len = '%x' % len(postfix_payload)  # TODO this assumes a single byte 0-255 (0x00-0xff)
-        buffer = hex2bin(payload_dict[self.dev_type]['prefix'] + payload_dict[self.dev_type][command]['hexByte'] + '000000' + postfix_payload_hex_len) + postfix_payload
+        buffer = hex2bin( payload_dict[self.dev_type]['prefix'] + 
+                          payload_dict[self.dev_type][command]['hexByte'] + 
+                          '000000' +
+                          postfix_payload_hex_len ) + postfix_payload
         #print('command', command)
         #print('prefix')
         #print(payload_dict[self.dev_type][command]['prefix'])
@@ -277,12 +283,12 @@ class OutletDevice(XenonDevice):
         
         Args:
             on(bool):  True for ON, False for OFF.
+            switch(int): The switch to set
         """
         # open device, send request, then close connection
-        command = ON if on else OFF
         if isinstance(switch, int):
             switch = str(switch)  # index and payload is a string
-        payload = self.generate_payload(command, dps_id=switch)
+        payload = self.generate_payload(SET, {switch:on})
         #print('payload %r' % payload)
 
         data = self._send_receive(payload)
@@ -305,8 +311,8 @@ class OutletDevice(XenonDevice):
         devices_numbers = list(devices.keys())
         devices_numbers.sort()
         dps_id = devices_numbers[-1]
-        command = SET
-        payload = self.generate_payload(command, dps_id=dps_id, value=num_secs)
+
+        payload = self.generate_payload(SET, {dps_id:num_secs})
 
         data = self._send_receive(payload)
         log.debug('set_timer received data=%r', data)
