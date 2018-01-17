@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import MagicMock
+from hashlib import md5
 import pytuya
 import json
 import logging
@@ -16,14 +17,41 @@ def compare_json_strings(json1, json2, ignoring_keys=None):
 
     return json.dumps(json1, sort_keys=True) == json.dumps(json2, sort_keys=True)
 
+def check_data_frame(data, expected_prefix, encrypted=True):
+    prefix = data[:15]
+    suffix = data[-8:]
+    
+    if encrypted:
+        payload_len = int.from_bytes(data[15:16], byteorder='big')
+        version = data[16:19]
+        checksum = data[19:35]
+        encrypted_json = data[35:-8]
+        
+        json_data = pytuya.AESCipher(LOCAL_KEY.encode('utf-8')).decrypt(encrypted_json)
+    else:
+        json_data = data[16:-8].decode('utf-8')
+    
+    frame_ok = True
+    if prefix != pytuya.hex2bin(expected_prefix):
+        frame_ok = False
+    elif suffix != pytuya.hex2bin("000000000000aa55"):
+        frame_ok = False
+    elif encrypted:
+        if payload_len != len(version) + len(checksum) + len(encrypted_json) + len(suffix):
+            frame_ok = False
+        elif version != b"3.1":
+            frame_ok = False
+    
+    return json_data, frame_ok
+            
 def mock_send_receive_set_timer(data):
     if mock_send_receive_set_timer.call_counter == 0:
         ret = 20*chr(0x0) + '{"devId":"DEVICE_ID","dps":{"1":false,"2":0}}' + 8*chr(0x0)
     elif mock_send_receive_set_timer.call_counter == 1:
         expected = '{"uid":"DEVICE_ID_HERE","devId":"DEVICE_ID_HERE","t":"","dps":{"2":6666}}'
-        json_data = pytuya.AESCipher(LOCAL_KEY.encode('utf-8')).decrypt(data[35:-8])
+        json_data, frame_ok = check_data_frame(data, "000055aa0000000000000007000000")
         
-        if compare_json_strings(json_data, expected, ['t']):
+        if frame_ok and compare_json_strings(json_data, expected, ['t']):
             ret = '{"test_result":"SUCCESS"}'
         else:
             ret = '{"test_result":"FAIL"}'
@@ -33,9 +61,9 @@ def mock_send_receive_set_timer(data):
     
 def mock_send_receive_set_status(data):
     expected = '{"dps":{"1":true},"uid":"DEVICE_ID_HERE","t":"1516117564","devId":"DEVICE_ID_HERE"}'
-    json_data = pytuya.AESCipher(LOCAL_KEY.encode('utf-8')).decrypt(data[35:-8])
+    json_data, frame_ok = check_data_frame(data, "000055aa0000000000000007000000")
     
-    if compare_json_strings(json_data, expected, ['t']):
+    if frame_ok and compare_json_strings(json_data, expected, ['t']):
         ret = '{"test_result":"SUCCESS"}'
     else:
         logging.error("json data not the same: {} != {}".format(json_data, expected))
@@ -45,10 +73,9 @@ def mock_send_receive_set_status(data):
 
 def mock_send_receive_status(data):
     expected = '{"devId":"DEVICE_ID_HERE","gwId":"DEVICE_ID_HERE"}'
-    json_data = data[16:-8].decode('utf-8')
-    logging.error("data: {}".format(json_data))
+    json_data, frame_ok = check_data_frame(data, "000055aa000000000000000a000000", False)
 
-    if compare_json_strings(json_data, expected):
+    if frame_ok and compare_json_strings(json_data, expected):
         ret = '{"test_result":"SUCCESS"}'
     else:
         logging.error("json data not the same: {} != {}".format(json_data, expected))
