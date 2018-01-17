@@ -43,6 +43,19 @@ def mock_send_receive_set_status(data):
         
     return ret
 
+def mock_send_receive_status(data):
+    expected = '{"devId":"DEVICE_ID_HERE","gwId":"DEVICE_ID_HERE"}'
+    json_data = data[16:-8].decode('utf-8')
+    logging.error("data: {}".format(json_data))
+
+    if compare_json_strings(json_data, expected):
+        ret = '{"test_result":"SUCCESS"}'
+    else:
+        logging.error("json data not the same: {} != {}".format(json_data, expected))
+        ret = '{"test_result":"FAIL"}'
+
+    return 20*chr(0) + ret + 8*chr(0)
+
 class TestXenonDevice(unittest.TestCase):
     def test_set_timer(self):
         d = pytuya.OutletDevice('DEVICE_ID_HERE', 'IP_ADDRESS_HERE', LOCAL_KEY)
@@ -64,6 +77,15 @@ class TestXenonDevice(unittest.TestCase):
         result = d.set_status(True, 1)
         result = json.loads(result)
         
+        # Make sure mock_send_receive_set_timer() has been called twice with correct parameters
+        self.assertEqual(result['test_result'], "SUCCESS")
+
+    def test_status(self):
+        d = pytuya.OutletDevice('DEVICE_ID_HERE', 'IP_ADDRESS_HERE', LOCAL_KEY)
+        d._send_receive = MagicMock(side_effect=mock_send_receive_status)
+
+        result = d.status()
+
         # Make sure mock_send_receive_set_timer() has been called twice with correct parameters
         self.assertEqual(result['test_result'], "SUCCESS")
 
