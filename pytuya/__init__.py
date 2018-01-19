@@ -172,7 +172,6 @@ class XenonDevice(object):
         if command in (SET, ON, OFF):
             if value is None:
                 value = True if command == ON else False
-            print(payload_dict[self.dev_type][command])
             payload_dict[self.dev_type][command]['command']['dps'][dps_id] = value
 
         # Create byte buffer from hex data
