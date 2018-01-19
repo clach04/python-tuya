@@ -1,11 +1,13 @@
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock  # FIXME Python 3 only, for py2 use https://pypi.python.org/pypi/mock
 from hashlib import md5
 import pytuya
 import json
 import logging
 
 LOCAL_KEY = '0123456789abcdef'
+
+mock_byte_encoding = 'utf-8'
 
 def compare_json_strings(json1, json2, ignoring_keys=None):
     json1 = json.loads(json1)
@@ -55,7 +57,8 @@ def mock_send_receive_set_timer(data):
             ret = '{"test_result":"SUCCESS"}'
         else:
             ret = '{"test_result":"FAIL"}'
-        
+
+    ret = ret.encode(mock_byte_encoding)
     mock_send_receive_set_timer.call_counter += 1
     return ret
     
@@ -68,20 +71,24 @@ def mock_send_receive_set_status(data):
     else:
         logging.error("json data not the same: {} != {}".format(json_data, expected))
         ret = '{"test_result":"FAIL"}'
-        
+
+    ret = ret.encode(mock_byte_encoding)
     return ret
 
 def mock_send_receive_status(data):
     expected = '{"devId":"DEVICE_ID_HERE","gwId":"DEVICE_ID_HERE"}'
     json_data, frame_ok = check_data_frame(data, "000055aa000000000000000a000000", False)
 
+    # FIXME dead code block
     if frame_ok and compare_json_strings(json_data, expected):
         ret = '{"test_result":"SUCCESS"}'
     else:
         logging.error("json data not the same: {} != {}".format(json_data, expected))
         ret = '{"test_result":"FAIL"}'
 
-    return 20*chr(0) + ret + 8*chr(0)
+    ret = 20*chr(0) + ret + 8*chr(0)
+    ret = ret.encode(mock_byte_encoding)
+    return ret
 
 class TestXenonDevice(unittest.TestCase):
     def test_set_timer(self):
@@ -91,7 +98,7 @@ class TestXenonDevice(unittest.TestCase):
         # Reset call_counter and start test
         mock_send_receive_set_timer.call_counter = 0
         result = d.set_timer(6666)
-        result = result[result.find('{'):result.rfind('}')+1]
+        result = result[result.find(b'{'):result.rfind(b'}')+1]
         result = json.loads(result)
         
         # Make sure mock_send_receive_set_timer() has been called twice with correct parameters
