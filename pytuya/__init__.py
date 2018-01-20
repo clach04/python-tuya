@@ -132,9 +132,18 @@ payload_dict = {
 class XenonDevice(object):
     def __init__(self, dev_id, address, local_key=None, dev_type=None):
         """
-        dev_id is the "devId" in payload sent to Tuya servers during device activation/registration
-        address is network address, e.g. "ip" packet in payload sent to Tuya servers during device activation/registration
-        local_key is the "localkey" from payload sent to Tuya servers during device activation/registration
+        Represents a Tuya device.
+        
+        Args:
+            dev_id (str): The device id.
+            address (str): The network address.
+            local_key (str, optional): The encryption key. Defaults to None.
+            dev_type (str, optional): The device type.
+                It will be used as key for lookups in payload_dict.
+                Defaults to None.
+            
+        Attributes:
+            port (int): The port to connect to.
         """
         self.id = dev_id
         self.address = address
@@ -148,7 +157,11 @@ class XenonDevice(object):
         return '%r' % ((self.id, self.address),)  # FIXME can do better than this
 
     def _send_receive(self, payload):
-        """Send single buffer `payload` and receivea single buffer
+        """
+        Send single buffer `payload` and receive a single buffer.
+        
+        Args:
+            payload: Data to send.
         """
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((self.address, self.port))
@@ -258,7 +271,11 @@ class OutletDevice(XenonDevice):
         return result
 
     def set_status(self, on, switch=1):
-        """on is a bool
+        """
+        Set status of the device to ON or OFF.
+        
+        Args:
+            on(bool):  True for ON, False for OFF.
         """
         # open device, send request, then close connection
         command = ON if on else OFF
@@ -273,7 +290,11 @@ class OutletDevice(XenonDevice):
         return data
 
     def set_timer(self, num_secs):
-        """num_secs should be an integer
+        """
+        Set a timer.
+        
+        Args:
+            num_secs(int): Number of seconds
         """
         # FIXME / TODO support schemas? Accept timer id number as parameter?
 
