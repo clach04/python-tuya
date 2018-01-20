@@ -8,8 +8,6 @@ https://github.com/clach04/python-tuya/wiki has background innformation.
 See https://github.com/codetheweb/tuyapi/blob/master/docs/SETUP.md for how to get device id and local key.
 (the device id can be seen in Jinvoo Smart App, under "Device Info").
 
-Major breakthroughs on protocol work came from https://github.com/codetheweb/tuyapi from the reverse engineering time and skills of codetheweb and blackrozes, additional protocol reverse engineering from jepsonrob and clach04.
-
 Known to work with:
   * SKYROKU SM-PW701U Wi-Fi Plug Smart Plug - see https://wikidevi.com/wiki/Xenon_SM-PW701U
   * Wuudi SM-S0301-US - WIFI Smart Power Socket Multi Plug with 4 AC Outlets and 4 USB Charging
@@ -42,3 +40,9 @@ TODO demo timer (with comment not all devices support this, one way to check, is
 
   * https://github.com/codetheweb/tuyapi node.js
   * https://github.com/Marcus-L/m4rcus.TuyaCore - .NET
+
+### Acknowledgements
+
+  * Major breakthroughs on protocol work came from https://github.com/codetheweb/tuyapi from the reverse engineering time and skills of codetheweb and blackrozes, additional protocol reverse engineering from jepsonrob and clach04.
+  * nijave pycryptodome support and testing
+  * Exilit for unittests and docstrings
