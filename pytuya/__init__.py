@@ -264,7 +264,6 @@ class OutletDevice(XenonDevice):
             cipher = AESCipher(self.local_key)
             result = cipher.decrypt(result)
             log.debug('decrypted result=%r', result)
-            result = result.decode()
             result = json.loads(result.decode())
         else:
             log.error('Unexpected status() payload=%r', result)
