@@ -254,7 +254,7 @@ class OutletDevice(XenonDevice):
         #print('result %r' % result)
         if result.startswith(b'{'):
             # this is the regular expected code path
-            result = json.loads(result)
+            result = json.loads(result.decode())
         elif result.startswith(PROTOCOL_VERSION_BYTES):
             # got an encrypted payload, happens occasionally
             # expect resulting json to look similar to:: {"devId":"ID","dps":{"1":true,"2":0},"t":EPOCH_SECS,"s":3_DIGIT_NUM}
@@ -264,7 +264,8 @@ class OutletDevice(XenonDevice):
             cipher = AESCipher(self.local_key)
             result = cipher.decrypt(result)
             log.debug('decrypted result=%r', result)
-            result = json.loads(result)
+            result = result.decode()
+            result = json.loads(result.decode())
         else:
             log.error('Unexpected status() payload=%r', result)
 
