@@ -9,6 +9,7 @@ from hashlib import md5
 import pytuya
 import json
 import logging
+import codecs
 
 LOCAL_KEY = '0123456789abcdef'
 
@@ -29,7 +30,7 @@ def check_data_frame(data, expected_prefix, encrypted=True):
     suffix = data[-8:]
     
     if encrypted:
-        payload_len = int.from_bytes(data[15:16], byteorder='big')
+        payload_len = int(codecs.encode(data[15:16], 'hex'), 16)
         version = data[16:19]
         checksum = data[19:35]
         encrypted_json = data[35:-8]
