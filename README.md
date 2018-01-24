@@ -46,3 +46,4 @@ TODO demo timer (with comment not all devices support this, one way to check, is
   * Major breakthroughs on protocol work came from https://github.com/codetheweb/tuyapi from the reverse engineering time and skills of codetheweb and blackrozes, additional protocol reverse engineering from jepsonrob and clach04.
   * nijave pycryptodome support and testing
   * Exilit for unittests and docstrings
+  * mike-gracia for improved Python version support
