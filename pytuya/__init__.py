@@ -242,6 +242,7 @@ class OutletDevice(XenonDevice):
         super(OutletDevice, self).__init__(dev_id, address, local_key, dev_type)
 
     def status(self):
+        log.debug('status() entry')
         # open device, send request, then close connection
         payload = self.generate_payload('status')
 
