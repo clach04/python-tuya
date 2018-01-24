@@ -1,5 +1,10 @@
 import unittest
-from unittest.mock import MagicMock  # FIXME Python 3 only, for py2 use https://pypi.python.org/pypi/mock
+try:
+    # Python 3 only
+    from unittest.mock import MagicMock
+except ImportError:
+    # for py2 use https://pypi.python.org/pypi/mock
+    from mock import MagicMock
 from hashlib import md5
 import pytuya
 import json
