@@ -1,14 +1,13 @@
 import unittest
 try:
-    # Python 3 only
-    from unittest.mock import MagicMock
+    from unittest.mock import MagicMock  # Python 3
 except ImportError:
-    # for py2 use https://pypi.python.org/pypi/mock
-    from mock import MagicMock
+    from mock import MagicMock  # py2 use https://pypi.python.org/pypi/mock
 from hashlib import md5
 import pytuya
 import json
 import logging
+import struct
 
 LOCAL_KEY = '0123456789abcdef'
 
@@ -29,7 +28,7 @@ def check_data_frame(data, expected_prefix, encrypted=True):
     suffix = data[-8:]
     
     if encrypted:
-        payload_len = int.from_bytes(data[15:16], byteorder='big')
+        payload_len = struct.unpack(">B",data[15:16])[0]  # big-endian, unsigned char
         version = data[16:19]
         checksum = data[19:35]
         encrypted_json = data[35:-8]
@@ -70,7 +69,7 @@ def mock_send_receive_set_timer(data):
 def mock_send_receive_set_status(data):
     expected = '{"dps":{"1":true},"uid":"DEVICE_ID_HERE","t":"1516117564","devId":"DEVICE_ID_HERE"}'
     json_data, frame_ok = check_data_frame(data, "000055aa0000000000000007000000")
-    
+
     if frame_ok and compare_json_strings(json_data, expected, ['t']):
         ret = '{"test_result":"SUCCESS"}'
     else:
