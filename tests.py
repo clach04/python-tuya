@@ -103,7 +103,7 @@ class TestXenonDevice(unittest.TestCase):
         mock_send_receive_set_timer.call_counter = 0
         result = d.set_timer(6666)
         result = result[result.find(b'{'):result.rfind(b'}')+1]
-        result = json.loads(result)
+        result = json.loads(result.decode())
         
         # Make sure mock_send_receive_set_timer() has been called twice with correct parameters
         self.assertEqual(result['test_result'], "SUCCESS")
@@ -113,7 +113,7 @@ class TestXenonDevice(unittest.TestCase):
         d._send_receive = MagicMock(side_effect=mock_send_receive_set_status)
         
         result = d.set_status(True, 1)
-        result = json.loads(result)
+        result = json.loads(result.decode())
         
         # Make sure mock_send_receive_set_timer() has been called twice with correct parameters
         self.assertEqual(result['test_result'], "SUCCESS")
