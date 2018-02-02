@@ -39,8 +39,7 @@ else:
     log.debug('Using PyCrypto %r', Crypto.version_info)
     log.debug('Using PyCrypto from %r', Crypto.__file__)
 
-ON = SET = 'set'
-OFF = 'off'
+SET = 'set'
 
 PROTOCOL_VERSION_BYTES = b'3.1'
 
@@ -197,7 +196,7 @@ class XenonDevice(object):
         json_payload = json_payload.encode('utf-8')
         log.debug('json_payload=%r', json_payload)
 
-        if command == ON:
+        if command == SET:
             # need to encrypt
             #print('json_payload %r' % json_payload)
             self.cipher = AESCipher(self.local_key)  # expect to connect and then disconnect to set new
@@ -279,10 +278,10 @@ class OutletDevice(XenonDevice):
 
     def set_status(self, on, switch=1):
         """
-        Set status of the device to ON or OFF.
+        Set status of the device to 'on' or 'off'.
         
         Args:
-            on(bool):  True for ON, False for OFF.
+            on(bool):  True for 'on', False for 'off'.
             switch(int): The switch to set
         """
         # open device, send request, then close connection
