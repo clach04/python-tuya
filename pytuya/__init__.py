@@ -125,7 +125,7 @@ payload_dict = {
 }
 
 class XenonDevice(object):
-    def __init__(self, dev_id, address, local_key=None, dev_type=None):
+    def __init__(self, dev_id, address, local_key=None, dev_type=None, connection_timeout=10):
         """
         Represents a Tuya device.
         
@@ -145,6 +145,7 @@ class XenonDevice(object):
         self.local_key = local_key
         self.local_key = local_key.encode('latin1')
         self.dev_type = dev_type
+        self.connection_timeout = connection_timeout
 
         self.port = 6668  # default - do not expect caller to pass in
 
@@ -159,6 +160,7 @@ class XenonDevice(object):
             payload(bytes): Data to send.
         """
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(self.connection_timeout)
         s.connect((self.address, self.port))
         s.send(payload)
         data = s.recv(1024)
