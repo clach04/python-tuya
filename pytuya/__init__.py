@@ -297,6 +297,29 @@ class OutletDevice(XenonDevice):
 
         return data
 
+    def set_colour(self, rgb):
+        """
+        Set colour of an rgb bulb.
+
+        Args:
+            rgb(string): Value for the colour as hex.
+        """
+        payload = self.generate_payload(SET, {'5':'%s0000ffff'%(rgb), '2': 'colour'}) #FIXME / TODO We still need to figure out what the last 4 bytes of '5' do.
+        data = self._send_receive(payload)
+        return data
+
+    def set_white(self, brightness, colourtemp):
+        """
+        Set white coloured theme of an rgb bulb.
+
+        Args:
+            brightness(byte): Value for the brightness (25-255).
+            colourtemp(byte): Value for the colour temperature (0-255).
+        """
+        payload = self.generate_payload(SET, {'2':'white', '3':brightness, '4':colourtemp})
+        data = self._send_receive(payload)
+        return data
+
     def set_timer(self, num_secs):
         """
         Set a timer.
