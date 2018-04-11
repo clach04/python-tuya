@@ -7,5 +7,5 @@ setup(name='python-tuya',
 	description='Python implementation of the Tuya protocol',
 	author='clach04',
 	url='https://github.com/clach04/python-tuya',
-	packages=['pycrypto'],
+	install_requires=['pycrypto >= 2.6'],
 	)
