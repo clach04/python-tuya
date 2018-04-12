@@ -16,7 +16,7 @@ import logging
 import socket
 import sys
 import time
-
+import colorsys
 
 try:
     #raise ImportError
@@ -364,7 +364,7 @@ class BulbDevice(XenonDevice):
             log.error('Unexpected status() payload=%r', result)
 
         return result
-    
+
     def set_status(self, on): #copied from outlet
         """
         Set status of the device to 'on' or 'off'.
@@ -373,20 +373,41 @@ class BulbDevice(XenonDevice):
             on(bool):  True for 'on', False for 'off'.
         """
         payload = self.generate_payload(SET, {'1':on})
-        
+
         data = self._send_receive(payload)
         log.debug('set_status received data=%r', data)
 
         return data
-    
-    def set_colour(self, rgb):
+
+    def set_colour(self, r, g, b):
         """
         Set colour of an rgb bulb.
 
         Args:
-            rgb(string): Value for the colour as hex.
+            r(int): Value for the colour red as int from 0-255.
+            g(int): Value for the colour green as int from 0-255.
+            b(int): Value for the colour blue as int from 0-255.
         """
-        payload = self.generate_payload(SET, {'5':'%s0000ffff'%(rgb), '2': 'colour'}) #FIXME / TODO We still need to figure out what the last 4 bytes of '5' do.
+
+        rgb = [r,g,b]
+        hsv = colorsys.rgb_to_hsv(rgb[0]/255, rgb[1]/255, rgb[2]/255)
+
+        hexvalue = ""
+        for value in rgb:
+            temp = str(hex(int(value))).replace("0x","")
+            if len(temp) == 1:
+                temp = "0" + temp
+            hexvalue = hexvalue + temp
+
+        hsvarray = [int(hsv[0] * 359), int(hsv[1] * 255), int(hsv[2] * 255)]
+        hexvalue = hexvalue + "00"
+        for value in hsvarray:
+            temp = str(hex(int(value))).replace("0x","")
+            if len(temp) == 1:
+                temp = "0" + temp
+            hexvalue = hexvalue + temp
+
+        payload = self.generate_payload(SET, {'5': hexvalue, '2': 'colour'})
         data = self._send_receive(payload)
         return data
 
@@ -398,12 +419,7 @@ class BulbDevice(XenonDevice):
             brightness(int): Value for the brightness (25-255).
             colourtemp(int): Value for the colour temperature (0-255).
         """
-        if isinstance(brightness, int):
-            brightness = str(brightness)
-        
-        if isinstance(colourtemp, int):
-            colourtemp = str(colourtemp)
-            
-        payload = self.generate_payload(SET, {'2':'white', '3':brightness, '4':colourtemp})
+
+        payload = self.generate_payload(SET, {'2': 'white', '3': brightness, '4': colourtemp})
         data = self._send_receive(payload)
         return data

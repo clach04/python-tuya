@@ -95,7 +95,7 @@ def mock_send_receive_status(data):
     return ret
 
 def mock_send_receive_set_colour(data):
-    expected = '{"dps":{"2":"colour", "5":"ffffff0000ffff"}, "devId":"DEVICE_ID_HERE","uid":"DEVICE_ID_HERE", "t":"1516117564"}'
+    expected = '{"dps":{"2":"colour", "5":"ffffff000000ff"}, "devId":"DEVICE_ID_HERE","uid":"DEVICE_ID_HERE", "t":"1516117564"}'
     json_data, frame_ok = check_data_frame(data, "000055aa0000000000000007000000")
 
     if frame_ok and compare_json_strings(json_data, expected, ['t']):
@@ -108,7 +108,7 @@ def mock_send_receive_set_colour(data):
     return ret
 
 def mock_send_receive_set_white(data):
-    expected = '{"dps":{"2":"white", "3":"255", "4":"255"}, "devId":"DEVICE_ID_HERE","uid":"DEVICE_ID_HERE", "t":"1516117564"}'
+    expected = '{"dps":{"2":"white", "3":255, "4":255}, "devId":"DEVICE_ID_HERE","uid":"DEVICE_ID_HERE", "t":"1516117564"}'
     json_data, frame_ok = check_data_frame(data, "000055aa0000000000000007000000")
 
     if frame_ok and compare_json_strings(json_data, expected, ['t']):
@@ -159,7 +159,7 @@ class TestXenonDevice(unittest.TestCase):
         d = pytuya.BulbDevice('DEVICE_ID_HERE', 'IP_ADDRESS_HERE', LOCAL_KEY)
         d._send_receive = MagicMock(side_effect=mock_send_receive_set_colour)
 
-        result = d.set_colour("ffffff")
+        result = d.set_colour(255,255,255)
         result = result.decode(mock_byte_encoding)
         result = json.loads(result)
 
