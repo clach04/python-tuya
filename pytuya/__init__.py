@@ -121,6 +121,18 @@ payload_dict = {
     },
     "prefix": "000055aa00000000000000",    # Next byte is command byte ("hexByte") some zero padding, then length of remaining payload, i.e. command + suffix (unclear if multiple bytes used for length, zero padding implies could be more than one byte)
     "suffix": "000000000000aa55"
+  },
+  "bulb": {
+    "status": {
+      "hexByte": "0a",
+      "command": {"gwId": "", "devId": ""}
+    },
+    "set": {
+      "hexByte": "07",
+      "command": {"devId": "", "uid": "", "t": ""}
+    },
+    "prefix": "000055aa00000000000000",
+    "suffix": "000000000000aa55"
   }
 }
 
@@ -242,7 +254,6 @@ class XenonDevice(object):
         #print('full buffer(%d) %r' % (len(buffer), buffer))
         return buffer
 
-
 class OutletDevice(XenonDevice):
     def __init__(self, dev_id, address, local_key=None, dev_type=None):
         dev_type = dev_type or 'outlet'
@@ -319,3 +330,80 @@ class OutletDevice(XenonDevice):
         log.debug('set_timer received data=%r', data)
         return data
 
+class BulbDevice(XenonDevice):
+    def __init__(self, dev_id, address, local_key=None, dev_type=None): #copied from outlet
+        dev_type = dev_type or 'bulb'
+        super(BulbDevice, self).__init__(dev_id, address, local_key, dev_type)
+
+    def status(self): #copied from outlet
+        log.debug('status() entry')
+        # open device, send request, then close connection
+        payload = self.generate_payload('status')
+
+        data = self._send_receive(payload)
+        log.debug('status received data=%r', data)
+
+        result = data[20:-8]  # hard coded offsets
+        log.debug('result=%r', result)
+        #result = data[data.find('{'):data.rfind('}')+1]  # naive marker search, hope neither { nor } occur in header/footer
+        #print('result %r' % result)
+        if result.startswith(b'{'):
+            # this is the regular expected code path
+            result = json.loads(result.decode())
+        elif result.startswith(PROTOCOL_VERSION_BYTES):
+            # got an encrypted payload, happens occasionally
+            # expect resulting json to look similar to:: {"devId":"ID","dps":{"1":true,"2":0},"t":EPOCH_SECS,"s":3_DIGIT_NUM}
+            # NOTE dps.2 may or may not be present
+            result = result[len(PROTOCOL_VERSION_BYTES):]  # remove version header
+            result = result[16:]  # remove (what I'm guessing, but not confirmed is) 16-bytes of MD5 hexdigest of payload
+            cipher = AESCipher(self.local_key)
+            result = cipher.decrypt(result)
+            log.debug('decrypted result=%r', result)
+            result = json.loads(result.decode())
+        else:
+            log.error('Unexpected status() payload=%r', result)
+
+        return result
+    
+    def set_status(self, on): #copied from outlet
+        """
+        Set status of the device to 'on' or 'off'.
+
+        Args:
+            on(bool):  True for 'on', False for 'off'.
+        """
+        payload = self.generate_payload(SET, {'1':on})
+        
+        data = self._send_receive(payload)
+        log.debug('set_status received data=%r', data)
+
+        return data
+    
+    def set_colour(self, rgb):
+        """
+        Set colour of an rgb bulb.
+
+        Args:
+            rgb(string): Value for the colour as hex.
+        """
+        payload = self.generate_payload(SET, {'5':'%s0000ffff'%(rgb), '2': 'colour'}) #FIXME / TODO We still need to figure out what the last 4 bytes of '5' do.
+        data = self._send_receive(payload)
+        return data
+
+    def set_white(self, brightness, colourtemp):
+        """
+        Set white coloured theme of an rgb bulb.
+
+        Args:
+            brightness(int): Value for the brightness (25-255).
+            colourtemp(int): Value for the colour temperature (0-255).
+        """
+        if isinstance(brightness, int):
+            brightness = str(brightness)
+        
+        if isinstance(colourtemp, int):
+            colourtemp = str(colourtemp)
+            
+        payload = self.generate_payload(SET, {'2':'white', '3':brightness, '4':colourtemp})
+        data = self._send_receive(payload)
+        return data
