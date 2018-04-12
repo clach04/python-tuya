@@ -94,6 +94,32 @@ def mock_send_receive_status(data):
     ret = ret.encode(mock_byte_encoding)
     return ret
 
+def mock_send_receive_set_colour(data):
+    expected = '{"dps":{"2":"colour", "5":"ffffff0000ffff"}, "devId":"DEVICE_ID_HERE","uid":"DEVICE_ID_HERE", "t":"1516117564"}'
+    json_data, frame_ok = check_data_frame(data, "000055aa0000000000000007000000")
+
+    if frame_ok and compare_json_strings(json_data, expected, ['t']):
+        ret = '{"test_result":"SUCCESS"}'
+    else:
+        logging.error("json data not the same: {} != {}".format(json_data, expected))
+        ret = '{"test_result":"FAIL"}'
+
+    ret = ret.encode(mock_byte_encoding)
+    return ret
+
+def mock_send_receive_set_white(data):
+    expected = '{"dps":{"2":"white", "3":"255", "4":"255"}, "devId":"DEVICE_ID_HERE","uid":"DEVICE_ID_HERE", "t":"1516117564"}'
+    json_data, frame_ok = check_data_frame(data, "000055aa0000000000000007000000")
+
+    if frame_ok and compare_json_strings(json_data, expected, ['t']):
+        ret = '{"test_result":"SUCCESS"}'
+    else:
+        logging.error("json data not the same: {} != {}".format(json_data, expected))
+        ret = '{"test_result":"FAIL"}'
+
+    ret = ret.encode(mock_byte_encoding)
+    return ret
+
 class TestXenonDevice(unittest.TestCase):
     def test_set_timer(self):
         d = pytuya.OutletDevice('DEVICE_ID_HERE', 'IP_ADDRESS_HERE', LOCAL_KEY)
@@ -127,6 +153,26 @@ class TestXenonDevice(unittest.TestCase):
         result = d.status()
 
         # Make sure mock_send_receive_set_timer() has been called twice with correct parameters
+        self.assertEqual(result['test_result'], "SUCCESS")
+        
+    def test_set_colour(self):
+        d = pytuya.BulbDevice('DEVICE_ID_HERE', 'IP_ADDRESS_HERE', LOCAL_KEY)
+        d._send_receive = MagicMock(side_effect=mock_send_receive_set_colour)
+        
+        result = d.set_colour("ffffff")
+        result = result.decode(mock_byte_encoding)
+        result = json.loads(result)
+        
+        self.assertEqual(result['test_result'], "SUCCESS")
+        
+    def test_set_white(self):
+        d = pytuya.BulbDevice('DEVICE_ID_HERE', 'IP_ADDRESS_HERE', LOCAL_KEY)
+        d._send_receive = MagicMock(side_effect=mock_send_receive_set_white)
+        
+        result = d.set_white(255, 255)
+        result = result.decode(mock_byte_encoding)
+        result = json.loads(result)
+        
         self.assertEqual(result['test_result'], "SUCCESS")
 
 if __name__ == '__main__':
