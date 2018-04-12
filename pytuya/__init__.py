@@ -399,7 +399,7 @@ class BulbDevice(XenonDevice):
                 temp = "0" + temp
             hexvalue = hexvalue + temp
 
-        hsvarray = [int(hsv[0] * 359), int(hsv[1] * 255), int(hsv[2] * 255)]
+        hsvarray = [int(hsv[0] * 255), int(hsv[1] * 255), int(hsv[2] * 255)]
         hexvalue = hexvalue + "00"
         for value in hsvarray:
             temp = str(hex(int(value))).replace("0x","")
