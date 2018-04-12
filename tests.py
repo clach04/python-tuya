@@ -96,6 +96,7 @@ def mock_send_receive_status(data):
 
 def mock_send_receive_set_colour(data):
     expected = '{"dps":{"2":"colour", "5":"ffffff000000ff"}, "devId":"DEVICE_ID_HERE","uid":"DEVICE_ID_HERE", "t":"1516117564"}'
+
     json_data, frame_ok = check_data_frame(data, "000055aa0000000000000007000000")
 
     if frame_ok and compare_json_strings(json_data, expected, ['t']):
@@ -153,6 +154,26 @@ class TestXenonDevice(unittest.TestCase):
         result = d.status()
 
         # Make sure mock_send_receive_set_timer() has been called twice with correct parameters
+        self.assertEqual(result['test_result'], "SUCCESS")
+        
+    def test_set_colour(self):
+        d = pytuya.BulbDevice('DEVICE_ID_HERE', 'IP_ADDRESS_HERE', LOCAL_KEY)
+        d._send_receive = MagicMock(side_effect=mock_send_receive_set_colour)
+        
+        result = d.set_colour("ffffff")
+        result = result.decode(mock_byte_encoding)
+        result = json.loads(result)
+        
+        self.assertEqual(result['test_result'], "SUCCESS")
+        
+    def test_set_white(self):
+        d = pytuya.BulbDevice('DEVICE_ID_HERE', 'IP_ADDRESS_HERE', LOCAL_KEY)
+        d._send_receive = MagicMock(side_effect=mock_send_receive_set_white)
+        
+        result = d.set_white(255, 255)
+        result = result.decode(mock_byte_encoding)
+        result = json.loads(result)
+        
         self.assertEqual(result['test_result'], "SUCCESS")
 
     def test_set_colour(self):
