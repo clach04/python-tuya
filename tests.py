@@ -159,26 +159,6 @@ class TestXenonDevice(unittest.TestCase):
     def test_set_colour(self):
         d = pytuya.BulbDevice('DEVICE_ID_HERE', 'IP_ADDRESS_HERE', LOCAL_KEY)
         d._send_receive = MagicMock(side_effect=mock_send_receive_set_colour)
-        
-        result = d.set_colour("ffffff")
-        result = result.decode(mock_byte_encoding)
-        result = json.loads(result)
-        
-        self.assertEqual(result['test_result'], "SUCCESS")
-        
-    def test_set_white(self):
-        d = pytuya.BulbDevice('DEVICE_ID_HERE', 'IP_ADDRESS_HERE', LOCAL_KEY)
-        d._send_receive = MagicMock(side_effect=mock_send_receive_set_white)
-        
-        result = d.set_white(255, 255)
-        result = result.decode(mock_byte_encoding)
-        result = json.loads(result)
-        
-        self.assertEqual(result['test_result'], "SUCCESS")
-
-    def test_set_colour(self):
-        d = pytuya.BulbDevice('DEVICE_ID_HERE', 'IP_ADDRESS_HERE', LOCAL_KEY)
-        d._send_receive = MagicMock(side_effect=mock_send_receive_set_colour)
 
         result = d.set_colour(255,255,255)
         result = result.decode(mock_byte_encoding)

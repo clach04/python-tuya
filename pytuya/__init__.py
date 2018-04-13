@@ -17,6 +17,7 @@ import socket
 import sys
 import time
 import colorsys
+import unittest
 
 try:
     #raise ImportError
@@ -110,7 +111,7 @@ def hex2bin(x):
 
 # This is intended to match requests.json payload at https://github.com/codetheweb/tuyapi
 payload_dict = {
-  "outlet": {
+  "device": {
     "status": {
       "hexByte": "0a",
       "command": {"gwId": "", "devId": ""}
@@ -120,18 +121,6 @@ payload_dict = {
       "command": {"devId": "", "uid": "", "t": ""}
     },
     "prefix": "000055aa00000000000000",    # Next byte is command byte ("hexByte") some zero padding, then length of remaining payload, i.e. command + suffix (unclear if multiple bytes used for length, zero padding implies could be more than one byte)
-    "suffix": "000000000000aa55"
-  },
-  "bulb": {
-    "status": {
-      "hexByte": "0a",
-      "command": {"gwId": "", "devId": ""}
-    },
-    "set": {
-      "hexByte": "07",
-      "command": {"devId": "", "uid": "", "t": ""}
-    },
-    "prefix": "000055aa00000000000000",
     "suffix": "000000000000aa55"
   }
 }
@@ -253,12 +242,11 @@ class XenonDevice(object):
         #print(bin2hex(buffer, pretty=False))
         #print('full buffer(%d) %r' % (len(buffer), buffer))
         return buffer
-
-class OutletDevice(XenonDevice):
+    
+class Device(XenonDevice):
     def __init__(self, dev_id, address, local_key=None, dev_type=None):
-        dev_type = dev_type or 'outlet'
-        super(OutletDevice, self).__init__(dev_id, address, local_key, dev_type)
-
+        super(Device, self).__init__(dev_id, address, local_key, dev_type)
+    
     def status(self):
         log.debug('status() entry')
         # open device, send request, then close connection
@@ -330,54 +318,15 @@ class OutletDevice(XenonDevice):
         log.debug('set_timer received data=%r', data)
         return data
 
-class BulbDevice(XenonDevice):
-    def __init__(self, dev_id, address, local_key=None, dev_type=None): #copied from outlet
-        dev_type = dev_type or 'bulb'
+class OutletDevice(Device):
+    def __init__(self, dev_id, address, local_key=None):
+        dev_type = 'device'
+        super(OutletDevice, self).__init__(dev_id, address, local_key, dev_type)
+
+class BulbDevice(Device, unittest.TestCase):
+    def __init__(self, dev_id, address, local_key=None):
+        dev_type = 'device'
         super(BulbDevice, self).__init__(dev_id, address, local_key, dev_type)
-
-    def status(self): #copied from outlet
-        log.debug('status() entry')
-        # open device, send request, then close connection
-        payload = self.generate_payload('status')
-
-        data = self._send_receive(payload)
-        log.debug('status received data=%r', data)
-
-        result = data[20:-8]  # hard coded offsets
-        log.debug('result=%r', result)
-        #result = data[data.find('{'):data.rfind('}')+1]  # naive marker search, hope neither { nor } occur in header/footer
-        #print('result %r' % result)
-        if result.startswith(b'{'):
-            # this is the regular expected code path
-            result = json.loads(result.decode())
-        elif result.startswith(PROTOCOL_VERSION_BYTES):
-            # got an encrypted payload, happens occasionally
-            # expect resulting json to look similar to:: {"devId":"ID","dps":{"1":true,"2":0},"t":EPOCH_SECS,"s":3_DIGIT_NUM}
-            # NOTE dps.2 may or may not be present
-            result = result[len(PROTOCOL_VERSION_BYTES):]  # remove version header
-            result = result[16:]  # remove (what I'm guessing, but not confirmed is) 16-bytes of MD5 hexdigest of payload
-            cipher = AESCipher(self.local_key)
-            result = cipher.decrypt(result)
-            log.debug('decrypted result=%r', result)
-            result = json.loads(result.decode())
-        else:
-            log.error('Unexpected status() payload=%r', result)
-
-        return result
-
-    def set_status(self, on): #copied from outlet
-        """
-        Set status of the device to 'on' or 'off'.
-
-        Args:
-            on(bool):  True for 'on', False for 'off'.
-        """
-        payload = self.generate_payload(SET, {'1':on})
-
-        data = self._send_receive(payload)
-        log.debug('set_status received data=%r', data)
-
-        return data
 
     def set_colour(self, r, g, b):
         """
@@ -389,6 +338,13 @@ class BulbDevice(XenonDevice):
             b(int): Value for the colour blue as int from 0-255.
         """
 
+        self.assertGreaterEqual(r, 0)
+        self.assertLessEqual(r, 255)
+        self.assertGreaterEqual(g, 0)
+        self.assertLessEqual(g, 255)
+        self.assertGreaterEqual(b, 0)
+        self.assertLessEqual(b, 255)
+        
         rgb = [r,g,b]
         hsv = colorsys.rgb_to_hsv(rgb[0]/255, rgb[1]/255, rgb[2]/255)
 
@@ -423,6 +379,10 @@ class BulbDevice(XenonDevice):
             brightness(int): Value for the brightness (25-255).
             colourtemp(int): Value for the colour temperature (0-255).
         """
+        self.assertGreaterEqual(brightness, 25)
+        self.assertLessEqual(brightness, 255)
+        self.assertGreaterEqual(colourtemp, 0)
+        self.assertLessEqual(colourtemp, 255)
 
         payload = self.generate_payload(SET, {'2': 'white', '3': brightness, '4': colourtemp})
         data = self._send_receive(payload)
