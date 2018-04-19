@@ -17,7 +17,6 @@ import socket
 import sys
 import time
 import colorsys
-import unittest
 
 try:
     #raise ImportError
@@ -323,7 +322,7 @@ class OutletDevice(Device):
         dev_type = 'device'
         super(OutletDevice, self).__init__(dev_id, address, local_key, dev_type)
 
-class BulbDevice(Device, unittest.TestCase):
+class BulbDevice(Device):
     def __init__(self, dev_id, address, local_key=None):
         dev_type = 'device'
         super(BulbDevice, self).__init__(dev_id, address, local_key, dev_type)
@@ -337,13 +336,12 @@ class BulbDevice(Device, unittest.TestCase):
             g(int): Value for the colour green as int from 0-255.
             b(int): Value for the colour blue as int from 0-255.
         """
-
-        self.assertGreaterEqual(r, 0)
-        self.assertLessEqual(r, 255)
-        self.assertGreaterEqual(g, 0)
-        self.assertLessEqual(g, 255)
-        self.assertGreaterEqual(b, 0)
-        self.assertLessEqual(b, 255)
+        if not 0 <= r <= 255:
+            raise ValueError("The value for red needs to be between 0 and 255.")
+        if not 0 <= g <= 255:
+            raise ValueError("The value for green needs to be between 0 and 255.")
+        if not 0 <= b <= 255:
+            raise ValueError("The value for blue needs to be between 0 and 255.")
         
         rgb = [r,g,b]
         hsv = colorsys.rgb_to_hsv(rgb[0]/255, rgb[1]/255, rgb[2]/255)
@@ -379,10 +377,10 @@ class BulbDevice(Device, unittest.TestCase):
             brightness(int): Value for the brightness (25-255).
             colourtemp(int): Value for the colour temperature (0-255).
         """
-        self.assertGreaterEqual(brightness, 25)
-        self.assertLessEqual(brightness, 255)
-        self.assertGreaterEqual(colourtemp, 0)
-        self.assertLessEqual(colourtemp, 255)
+        if not 25 <= brightness <= 255:
+            raise ValueError("The brightness needs to be between 25 and 255.")
+        if not 0 <= colourtemp <= 255:
+            raise ValueError("The colour temperature needs to be between 0 and 255.")
 
         payload = self.generate_payload(SET, {'2': 'white', '3': brightness, '4': colourtemp})
         data = self._send_receive(payload)
