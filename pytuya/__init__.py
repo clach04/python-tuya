@@ -16,7 +16,7 @@ import logging
 import socket
 import sys
 import time
-
+import colorsys
 
 try:
     #raise ImportError
@@ -110,7 +110,7 @@ def hex2bin(x):
 
 # This is intended to match requests.json payload at https://github.com/codetheweb/tuyapi
 payload_dict = {
-  "outlet": {
+  "device": {
     "status": {
       "hexByte": "0a",
       "command": {"gwId": "", "devId": ""}
@@ -241,13 +241,11 @@ class XenonDevice(object):
         #print(bin2hex(buffer, pretty=False))
         #print('full buffer(%d) %r' % (len(buffer), buffer))
         return buffer
-
-
-class OutletDevice(XenonDevice):
+    
+class Device(XenonDevice):
     def __init__(self, dev_id, address, local_key=None, dev_type=None):
-        dev_type = dev_type or 'outlet'
-        super(OutletDevice, self).__init__(dev_id, address, local_key, dev_type)
-
+        super(Device, self).__init__(dev_id, address, local_key, dev_type)
+    
     def status(self):
         log.debug('status() entry')
         # open device, send request, then close connection
@@ -319,3 +317,71 @@ class OutletDevice(XenonDevice):
         log.debug('set_timer received data=%r', data)
         return data
 
+class OutletDevice(Device):
+    def __init__(self, dev_id, address, local_key=None):
+        dev_type = 'device'
+        super(OutletDevice, self).__init__(dev_id, address, local_key, dev_type)
+
+class BulbDevice(Device):
+    def __init__(self, dev_id, address, local_key=None):
+        dev_type = 'device'
+        super(BulbDevice, self).__init__(dev_id, address, local_key, dev_type)
+
+    def set_colour(self, r, g, b):
+        """
+        Set colour of an rgb bulb.
+
+        Args:
+            r(int): Value for the colour red as int from 0-255.
+            g(int): Value for the colour green as int from 0-255.
+            b(int): Value for the colour blue as int from 0-255.
+        """
+        if not 0 <= r <= 255:
+            raise ValueError("The value for red needs to be between 0 and 255.")
+        if not 0 <= g <= 255:
+            raise ValueError("The value for green needs to be between 0 and 255.")
+        if not 0 <= b <= 255:
+            raise ValueError("The value for blue needs to be between 0 and 255.")
+        
+        rgb = [r,g,b]
+        hsv = colorsys.rgb_to_hsv(rgb[0]/255, rgb[1]/255, rgb[2]/255)
+
+        hexvalue = ""
+        for value in rgb:
+            temp = str(hex(int(value))).replace("0x","")
+            if len(temp) == 1:
+                temp = "0" + temp
+            hexvalue = hexvalue + temp
+
+        hsvarray = [int(hsv[0] * 360), int(hsv[1] * 255), int(hsv[2] * 255)]
+        hexvalue_hsv = ""
+        for value in hsvarray:
+            temp = str(hex(int(value))).replace("0x","")
+            if len(temp) == 1:
+                temp = "0" + temp
+            hexvalue_hsv = hexvalue_hsv + temp
+        if len(hexvalue_hsv) == 7:
+            hexvalue = hexvalue + "0" + hexvalue_hsv
+        else:
+            hexvalue = hexvalue + "00" + hexvalue_hsv
+
+        payload = self.generate_payload(SET, {'5': hexvalue, '2': 'colour'})
+        data = self._send_receive(payload)
+        return data
+
+    def set_white(self, brightness, colourtemp):
+        """
+        Set white coloured theme of an rgb bulb.
+
+        Args:
+            brightness(int): Value for the brightness (25-255).
+            colourtemp(int): Value for the colour temperature (0-255).
+        """
+        if not 25 <= brightness <= 255:
+            raise ValueError("The brightness needs to be between 25 and 255.")
+        if not 0 <= colourtemp <= 255:
+            raise ValueError("The colour temperature needs to be between 0 and 255.")
+
+        payload = self.generate_payload(SET, {'2': 'white', '3': brightness, '4': colourtemp})
+        data = self._send_receive(payload)
+        return data
