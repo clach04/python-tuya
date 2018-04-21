@@ -31,13 +31,13 @@ log = logging.getLogger(__name__)
 logging.basicConfig()  # TODO include function name/line numbers in log
 #log.setLevel(level=logging.DEBUG)  # Debug hack!
 
-log.debug('Python %s on %s', sys.version, sys.platform)
+log.info('Python %s on %s', sys.version, sys.platform)
 if Crypto is None:
-    log.debug('Using pyaes version %r', pyaes.VERSION)
-    log.debug('Using pyaes from %r', pyaes.__file__)
+    log.info('Using pyaes version %r', pyaes.VERSION)
+    log.info('Using pyaes from %r', pyaes.__file__)
 else:
-    log.debug('Using PyCrypto %r', Crypto.version_info)
-    log.debug('Using PyCrypto from %r', Crypto.__file__)
+    log.info('Using PyCrypto %r', Crypto.version_info)
+    log.info('Using PyCrypto from %r', Crypto.__file__)
 
 SET = 'set'
 

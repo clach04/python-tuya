@@ -1,13 +1,21 @@
+import logging
+
 import unittest
 try:
     from unittest.mock import MagicMock  # Python 3
 except ImportError:
     from mock import MagicMock  # py2 use https://pypi.python.org/pypi/mock
 from hashlib import md5
-import pytuya
 import json
 import logging
 import struct
+
+# Enable info logging to see version information
+log = logging.getLogger('pytuya')
+log.setLevel(level=logging.INFO)
+#log.setLevel(level=logging.DEBUG)  # Debug hack!
+
+import pytuya
 
 LOCAL_KEY = '0123456789abcdef'
 
