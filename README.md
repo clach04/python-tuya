@@ -38,6 +38,14 @@ Demo:
 
 TODO demo timer (with comment not all devices support this, one way to check, is to check Jinvoo Smart App and see if there is a clock icon that is not dimmed out).
 
+### Encryption notes
+
+These devices uses AES encryption, this is not available in Python standard library, there are three options:
+
+ 1) PyCrypto
+ 2) PyCryptodome
+ 3) pyaes (note Python 2.x support requires https://github.com/ricmoo/pyaes/pull/13)
+
 ### Related Projects
 
   * https://github.com/codetheweb/tuyapi node.js
