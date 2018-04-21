@@ -57,3 +57,4 @@ These devices uses AES encryption, this is not available in Python standard libr
   * nijave pycryptodome support and testing
   * Exilit for unittests and docstrings
   * mike-gracia for improved Python version support
+  * samuscherer for RGB Bulb support
