@@ -160,6 +160,7 @@ class XenonDevice(object):
             payload(bytes): Data to send.
         """
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         s.settimeout(self.connection_timeout)
         s.connect((self.address, self.port))
         s.send(payload)
