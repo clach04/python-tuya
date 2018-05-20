@@ -6,6 +6,8 @@ Python 2.7 and Python 3.6.1 interface to ESP8266MOD WiFi smart devices from Shen
 If you are using the Jinvoo Smart App, this allows local control over the LAN.
 NOTE requires the devices to have already been activated by Jinvoo Smart App.
 
+## Key extraction
+
 https://github.com/clach04/python-tuya/wiki has background innformation.
 See https://github.com/codetheweb/tuyapi/blob/master/docs/SETUP.md for how to get device id and local key.
 (the device id can be seen in Jinvoo Smart App, under "Device Info").
