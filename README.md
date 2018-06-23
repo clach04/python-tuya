@@ -60,3 +60,4 @@ These devices uses AES encryption, this is not available in Python standard libr
   * Exilit for unittests and docstrings
   * mike-gracia for improved Python version support
   * samuscherer for RGB Bulb support
+  * magneticflux- for improved Python version support
