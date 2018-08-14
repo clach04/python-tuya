@@ -8,8 +8,7 @@ NOTE requires the devices to have already been **activated** by Jinvoo Smart App
 
 ## Key extraction
 
-https://github.com/clach04/python-tuya/wiki has background information.
-See https://github.com/codetheweb/tuyapi/blob/master/docs/SETUP.md for how to get device id and local key.
+https://github.com/clach04/python-tuya/wiki has background information for how to get device id and local key.
 (the device id can be seen in Jinvoo Smart App, under "Device Info").
 
 Known to work with:
