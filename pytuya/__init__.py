@@ -490,3 +490,21 @@ class BulbDevice(Device):
         payload = self.generate_payload(SET, {self.DPS_INDEX_COLOURTEMP: colourtemp})
         data = self._send_receive(payload)
         return data
+
+    def brightness(self):
+        """Return brightness value"""
+        return self.status()[self.DPS][self.DPS_INDEX_BRIGHTNESS]
+
+    def colourtemp(self):
+        """Return colour temperature"""
+        return self.status()[self.DPS][self.DPS_INDEX_COLOURTEMP]
+
+    def colour_rgb(self):
+        """Return colour as RGB value"""
+        hexvalue = self.status()[self.DPS][self.DPS_INDEX_COLOUR]
+        return BulbDevice._hexvalue_to_rgb(hexvalue)
+
+    def colour_hsv(self):
+        """Return colour as HSV value"""
+        hexvalue = self.status()[self.DPS][self.DPS_INDEX_COLOUR]
+        return BulbDevice._hexvalue_to_hsv(hexvalue)
