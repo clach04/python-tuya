@@ -300,6 +300,14 @@ class Device(XenonDevice):
 
         return data
 
+    def turn_on(self, switch=1):
+        """Turn the device on"""
+        self.set_status(True, switch)
+
+    def turn_off(self, switch=1):
+        """Turn the device off"""
+        self.set_status(False, switch)
+
     def set_timer(self, num_secs):
         """
         Set a timer.
