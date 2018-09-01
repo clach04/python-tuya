@@ -340,22 +340,22 @@ class BulbDevice(Device):
         dev_type = 'device'
         super(BulbDevice, self).__init__(dev_id, address, local_key, dev_type)
 
-    def set_colour(self, r, g, b):
+    def _rgb_to_hexvalue(r, g, b):
         """
-        Set colour of an rgb bulb.
-
+        Convert an RGB value to the hex representation expected by tuya.
+        
+        Index '5' (DPS_INDEX_COLOUR) is assumed to be in the format:
+        rrggbb0hhhssvv
+        
+        While r, g and b are just hexadecimal values of the corresponding
+        Red, Green and Blue values, the h, s and v values (which are values
+        between 0 and 1) are scaled to 360 (h) and 255 (s and v) respectively.
+        
         Args:
             r(int): Value for the colour red as int from 0-255.
             g(int): Value for the colour green as int from 0-255.
             b(int): Value for the colour blue as int from 0-255.
         """
-        if not 0 <= r <= 255:
-            raise ValueError("The value for red needs to be between 0 and 255.")
-        if not 0 <= g <= 255:
-            raise ValueError("The value for green needs to be between 0 and 255.")
-        if not 0 <= b <= 255:
-            raise ValueError("The value for blue needs to be between 0 and 255.")
-        
         rgb = [r,g,b]
         hsv = colorsys.rgb_to_hsv(rgb[0]/255, rgb[1]/255, rgb[2]/255)
 
@@ -377,6 +377,26 @@ class BulbDevice(Device):
             hexvalue = hexvalue + "0" + hexvalue_hsv
         else:
             hexvalue = hexvalue + "00" + hexvalue_hsv
+
+        return hexvalue
+
+    def set_colour(self, r, g, b):
+        """
+        Set colour of an rgb bulb.
+
+        Args:
+            r(int): Value for the colour red as int from 0-255.
+            g(int): Value for the colour green as int from 0-255.
+            b(int): Value for the colour blue as int from 0-255.
+        """
+        if not 0 <= r <= 255:
+            raise ValueError("The value for red needs to be between 0 and 255.")
+        if not 0 <= g <= 255:
+            raise ValueError("The value for green needs to be between 0 and 255.")
+        if not 0 <= b <= 255:
+            raise ValueError("The value for blue needs to be between 0 and 255.")
+
+        hexvalue = BulbDevice._rgb_to_hexvalue(r, g, b)
 
         payload = self.generate_payload(SET, {'5': hexvalue, '2': 'colour'})
         data = self._send_receive(payload)
