@@ -336,6 +336,16 @@ class OutletDevice(Device):
         super(OutletDevice, self).__init__(dev_id, address, local_key, dev_type)
 
 class BulbDevice(Device):
+    DPS_INDEX_ON         = '1'
+    DPS_INDEX_MODE       = '2'
+    DPS_INDEX_BRIGHTNESS = '3'
+    DPS_INDEX_COLOURTEMP = '4'
+    DPS_INDEX_COLOUR     = '5'
+
+    DPS             = 'dps'
+    DPS_MODE_COLOUR = 'colour'
+    DPS_MODE_WHITE  = 'white'
+
     def __init__(self, dev_id, address, local_key=None):
         dev_type = 'device'
         super(BulbDevice, self).__init__(dev_id, address, local_key, dev_type)
@@ -398,7 +408,9 @@ class BulbDevice(Device):
 
         hexvalue = BulbDevice._rgb_to_hexvalue(r, g, b)
 
-        payload = self.generate_payload(SET, {'5': hexvalue, '2': 'colour'})
+        payload = self.generate_payload(SET, {
+            self.DPS_INDEX_MODE: self.DPS_MODE_COLOUR,
+            self.DPS_INDEX_COLOUR: hexvalue})
         data = self._send_receive(payload)
         return data
 
@@ -415,7 +427,11 @@ class BulbDevice(Device):
         if not 0 <= colourtemp <= 255:
             raise ValueError("The colour temperature needs to be between 0 and 255.")
 
-        payload = self.generate_payload(SET, {'2': 'white', '3': brightness, '4': colourtemp})
+        payload = self.generate_payload(SET, {
+            self.DPS_INDEX_MODE: self.DPS_MODE_WHITE,
+            self.DPS_INDEX_BRIGHTNESS: brightness,
+            self.DPS_INDEX_COLOURTEMP: colourtemp})
+
         data = self._send_receive(payload)
         return data
 
@@ -429,7 +445,7 @@ class BulbDevice(Device):
         if not 25 <= brightness <= 255:
             raise ValueError("The brightness needs to be between 25 and 255.")
 
-        payload = self.generate_payload(SET, {'3': brightness})
+        payload = self.generate_payload(SET, {self.DPS_INDEX_BRIGHTNESS: brightness})
         data = self._send_receive(payload)
         return data
 
@@ -443,6 +459,6 @@ class BulbDevice(Device):
         if not 0 <= colourtemp <= 255:
             raise ValueError("The colour temperature needs to be between 0 and 255.")
 
-        payload = self.generate_payload(SET, {'4': colourtemp})
+        payload = self.generate_payload(SET, {self.DPS_INDEX_COLOURTEMP: colourtemp})
         data = self._send_receive(payload)
         return data
