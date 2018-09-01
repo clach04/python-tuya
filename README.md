@@ -49,6 +49,7 @@ These devices uses AES encryption, this is not available in Python standard libr
 
 ### Related Projects
 
+  * https://github.com/sean6541/tuyaapi Python API to the web api
   * https://github.com/codetheweb/tuyapi node.js
   * https://github.com/Marcus-L/m4rcus.TuyaCore - .NET
   * https://github.com/SDNick484/rectec_status/ - RecTec pellet smokers control (with Alexa skill)
