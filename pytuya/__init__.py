@@ -418,3 +418,31 @@ class BulbDevice(Device):
         payload = self.generate_payload(SET, {'2': 'white', '3': brightness, '4': colourtemp})
         data = self._send_receive(payload)
         return data
+
+    def set_brightness(self, brightness):
+        """
+        Set the brightness value of an rgb bulb.
+
+        Args:
+            brightness(int): Value for the brightness (25-255).
+        """
+        if not 25 <= brightness <= 255:
+            raise ValueError("The brightness needs to be between 25 and 255.")
+
+        payload = self.generate_payload(SET, {'3': brightness})
+        data = self._send_receive(payload)
+        return data
+
+    def set_colourtemp(self, colourtemp):
+        """
+        Set the colour temperature of an rgb bulb.
+
+        Args:
+            colourtemp(int): Value for the colour temperature (0-255).
+        """
+        if not 0 <= colourtemp <= 255:
+            raise ValueError("The colour temperature needs to be between 0 and 255.")
+
+        payload = self.generate_payload(SET, {'4': colourtemp})
+        data = self._send_receive(payload)
+        return data
