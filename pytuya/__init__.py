@@ -508,3 +508,14 @@ class BulbDevice(Device):
         """Return colour as HSV value"""
         hexvalue = self.status()[self.DPS][self.DPS_INDEX_COLOUR]
         return BulbDevice._hexvalue_to_hsv(hexvalue)
+
+    def state(self):
+        status = self.status()
+        state = {
+            'is_on'      : status[self.DPS][self.DPS_INDEX_ON],
+            'mode'       : status[self.DPS][self.DPS_INDEX_MODE],
+            'brightness' : status[self.DPS][self.DPS_INDEX_BRIGHTNESS],
+            'colourtemp' : status[self.DPS][self.DPS_INDEX_COLOURTEMP],
+            'colour'     : status[self.DPS][self.DPS_INDEX_COLOUR],
+            }
+        return state
