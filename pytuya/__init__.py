@@ -350,6 +350,7 @@ class BulbDevice(Device):
         dev_type = 'device'
         super(BulbDevice, self).__init__(dev_id, address, local_key, dev_type)
 
+    @staticmethod
     def _rgb_to_hexvalue(r, g, b):
         """
         Convert an RGB value to the hex representation expected by tuya.
@@ -390,6 +391,7 @@ class BulbDevice(Device):
 
         return hexvalue
 
+    @staticmethod
     def _hexvalue_to_rgb(hexvalue):
         """
         Converts the hexvalue used by tuya for colour representation into
@@ -404,6 +406,7 @@ class BulbDevice(Device):
 
         return (r, g, b)
 
+    @staticmethod
     def _hexvalue_to_hsv(hexvalue):
         """
         Converts the hexvalue used by tuya for colour representation into
@@ -434,6 +437,7 @@ class BulbDevice(Device):
         if not 0 <= b <= 255:
             raise ValueError("The value for blue needs to be between 0 and 255.")
 
+        print(BulbDevice)
         hexvalue = BulbDevice._rgb_to_hexvalue(r, g, b)
 
         payload = self.generate_payload(SET, {
