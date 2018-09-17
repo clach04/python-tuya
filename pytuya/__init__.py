@@ -336,15 +336,26 @@ class OutletDevice(Device):
         super(OutletDevice, self).__init__(dev_id, address, local_key, dev_type)
 
 class BulbDevice(Device):
-    DPS_INDEX_ON         = '1'
-    DPS_INDEX_MODE       = '2'
-    DPS_INDEX_BRIGHTNESS = '3'
-    DPS_INDEX_COLOURTEMP = '4'
-    DPS_INDEX_COLOUR     = '5'
+    DPS_INDEX_ON           = '1'
+    DPS_INDEX_MODE         = '2'
+    DPS_INDEX_BRIGHTNESS   = '3'
+    DPS_INDEX_COLOURTEMP   = '4'
+    DPS_INDEX_COLOUR       = '5'
+    DPS_INDEX_COLOUR_SCENE = '6'
 
-    DPS             = 'dps'
-    DPS_MODE_COLOUR = 'colour'
-    DPS_MODE_WHITE  = 'white'
+    DPS                   = 'dps'
+    DPS_MODE_COLOUR       = 'colour'
+    DPS_MODE_COLOUR_SCENE = 'scene'
+    DPS_MODE_WHITE        = 'white'
+
+    DPS_2_STATE = {
+                '1':'is_on',
+                '2':'mode',
+                '3':'brightness',
+                '4':'colourtemp',
+                '5':'colour',
+                '6':'colour_scene'
+                }
 
     def __init__(self, dev_id, address, local_key=None):
         dev_type = 'device'
@@ -437,7 +448,7 @@ class BulbDevice(Device):
         if not 0 <= b <= 255:
             raise ValueError("The value for blue needs to be between 0 and 255.")
 
-        print(BulbDevice)
+        #print(BulbDevice)
         hexvalue = BulbDevice._rgb_to_hexvalue(r, g, b)
 
         payload = self.generate_payload(SET, {
@@ -445,8 +456,33 @@ class BulbDevice(Device):
             self.DPS_INDEX_COLOUR: hexvalue})
         data = self._send_receive(payload)
         return data
+        
+    def set_colour_scene(self, r, g, b):
+        """
+        Set colour scene of an rgb bulb.
 
-    def set_white(self, brightness, colourtemp):
+        Args:
+            r(int): Value for the colour red as int from 0-255.
+            g(int): Value for the colour green as int from 0-255.
+            b(int): Value for the colour blue as int from 0-255.
+        """
+        if not 0 <= r <= 255:
+            raise ValueError("The value for red needs to be between 0 and 255.")
+        if not 0 <= g <= 255:
+            raise ValueError("The value for green needs to be between 0 and 255.")
+        if not 0 <= b <= 255:
+            raise ValueError("The value for blue needs to be between 0 and 255.")
+
+        #print(BulbDevice)
+        hexvalue = BulbDevice._rgb_to_hexvalue(r, g, b)
+
+        payload = self.generate_payload(SET, {
+            self.DPS_INDEX_MODE: self.DPS_MODE_COLOUR_SCENE,
+            self.DPS_INDEX_COLOUR_SCENE: hexvalue})
+        data = self._send_receive(payload)
+        return data
+        
+    def set_white(self, brightness, colourtemp=None):
         """
         Set white coloured theme of an rgb bulb.
 
@@ -456,13 +492,18 @@ class BulbDevice(Device):
         """
         if not 25 <= brightness <= 255:
             raise ValueError("The brightness needs to be between 25 and 255.")
-        if not 0 <= colourtemp <= 255:
-            raise ValueError("The colour temperature needs to be between 0 and 255.")
+        if not colourtemp==None:
+            if not 0 <= colourtemp <= 255:
+                raise ValueError("The colour temperature needs to be between 0 and 255.")
 
-        payload = self.generate_payload(SET, {
+        data_payload = {
             self.DPS_INDEX_MODE: self.DPS_MODE_WHITE,
-            self.DPS_INDEX_BRIGHTNESS: brightness,
-            self.DPS_INDEX_COLOURTEMP: colourtemp})
+            self.DPS_INDEX_BRIGHTNESS: brightness}
+        
+        if not colourtemp==None:
+            data_payload[self.DPS_INDEX_COLOURTEMP]=colourtemp
+			
+        payload = self.generate_payload(SET, data_payload)
 
         data = self._send_receive(payload)
         return data
@@ -507,19 +548,28 @@ class BulbDevice(Device):
         """Return colour as RGB value"""
         hexvalue = self.status()[self.DPS][self.DPS_INDEX_COLOUR]
         return BulbDevice._hexvalue_to_rgb(hexvalue)
+        
+    def colour_rgb_scene(self):
+        """Return colour scene as RGB value"""
+        hexvalue = self.status()[self.DPS][self.DPS_INDEX_COLOUR_SCENE]
+        return BulbDevice._hexvalue_to_rgb(hexvalue)
 
     def colour_hsv(self):
         """Return colour as HSV value"""
         hexvalue = self.status()[self.DPS][self.DPS_INDEX_COLOUR]
         return BulbDevice._hexvalue_to_hsv(hexvalue)
 
+    def colour_hsv_scene(self):
+        """Return colour scene as HSV value"""
+        hexvalue = self.status()[self.DPS][self.DPS_INDEX_COLOUR_SCENE]
+        return BulbDevice._hexvalue_to_hsv(hexvalue)
+        
     def state(self):
         status = self.status()
-        state = {
-            'is_on'      : status[self.DPS][self.DPS_INDEX_ON],
-            'mode'       : status[self.DPS][self.DPS_INDEX_MODE],
-            'brightness' : status[self.DPS][self.DPS_INDEX_BRIGHTNESS],
-            'colourtemp' : status[self.DPS][self.DPS_INDEX_COLOURTEMP],
-            'colour'     : status[self.DPS][self.DPS_INDEX_COLOUR],
-            }
+        state = {}
+
+        for key in status[self.DPS].keys():
+            if(int(key)<=6):
+                state[self.DPS_2_STATE[key]]=status[self.DPS][key]
+
         return state
