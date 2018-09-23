@@ -293,7 +293,11 @@ class Device(XenonDevice):
         start=data.find(b'{"devId')
         if(start!=-1):
             result = data[start:] #in 2 steps to deal with the case where '}}' is present before {"devId'
-            end=result.find(b'}}')+2
+            end=result.find(b'}}')
+            if(end==-1):
+                return (True,data)
+            else:
+                end=end+2
             result = result[:end]
             
             #log.debug('result=%r', result)
@@ -303,14 +307,12 @@ class Device(XenonDevice):
             return (False,result)
         
         #encrypted data: incomplete dps {'devId': 'NUM', 'dps': {'1': bool}, 't': NUM, 's': NUM}
-        return(True,data)
+        return (True,data)
         
         #start=data.find(PROTOCOL_VERSION_BYTES)
         #if(start == -1): #if not found
         #    if(len(data)<=28):
         #        return (True,data) #no information from set command (data to small)
-        #                           #the data should be like that:
-        #                           #b'\x00\x00U\xaa\x00\x00\x00\x00\x00\x00\x00\x07\x00\x00\x00\x0c\x00\x00\x00\x00x\x93p\x91\x00\x00\xaaU'
         #    else:
         #        log.debug('Unexpected status() payload=%r', data)
         #        return (True,data)
