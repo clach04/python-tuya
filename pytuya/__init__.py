@@ -149,8 +149,15 @@ class XenonDevice(object):
 
         self.port = 6668  # default - do not expect caller to pass in
 
+        self.s = None # persistent socket
+
     def __repr__(self):
         return '%r' % ((self.id, self.address),)  # FIXME can do better than this
+
+    def disconnect(self):
+        """ close the connection """
+        self.s.close()
+        self.s = None
 
     def _send_receive(self, payload):
         """
@@ -159,15 +166,41 @@ class XenonDevice(object):
         Args:
             payload(bytes): Data to send.
         """
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        s.settimeout(self.connection_timeout)
-        s.connect((self.address, self.port))
-        s.send(payload)
-        data = s.recv(1024)
-        s.close()
-        return data
-
+               
+        if(self.s == None):
+            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            self.s.settimeout(self.connection_timeout)
+            try:
+                self.s.connect((self.address, self.port))
+            except:
+                pass
+                
+        cpt_connect=0   
+        while(cpt_connect<10): # guess 10 is enough
+            try:
+                self.s.send(payload)
+                data = self.s.recv(4096)
+                cpt_connect=10
+            except (ConnectionResetError, ConnectionRefusedError, BrokenPipeError) as e:
+                cpt_connect = cpt_connect+1
+                if(cpt_connect==10):
+                    raise e
+                self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                self.s.settimeout(self.connection_timeout)
+                self.s.connect((self.address, self.port))
+            except socket.timeout as e:
+                cpt_connect = cpt_connect+1
+                if(cpt_connect==2):#stop after the first retry to avoid to long blocking time 
+                    raise e
+                self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                self.s.settimeout(self.connection_timeout)
+                self.s.connect((self.address, self.port))
+            
+        return data 
+        
     def generate_payload(self, command, data=None):
         """
         Generate the payload to send.
@@ -247,40 +280,66 @@ class Device(XenonDevice):
     def __init__(self, dev_id, address, local_key=None, dev_type=None):
         super(Device, self).__init__(dev_id, address, local_key, dev_type)
     
-    def status(self):
-        log.debug('status() entry')
-        # open device, send request, then close connection
-        payload = self.generate_payload('status')
+    def extract_payload(self,data):
+        """ Return the dps status in json format in a tuple (bool,json)
+            if(bool): an error occur and the json is not relevant
+            else: no error detected and the status is in json format
+        
+        Args:
+            data: The data received by _send_receive function       
+        """ 
 
+        #if non encrypted data
+        start=data.find(b'{"devId')
+        if(start!=-1):
+            result = data[start:] #in 2 steps to deal with the case where '}}' is present before {"devId'
+            end=result.find(b'}}')+2
+            result = result[:end]
+            
+            #log.debug('result=%r', result)
+            if not isinstance(result, str):
+                result = result.decode()
+            result = json.loads(result)
+            return (False,result)
+        
+        #encrypted data: incomplete dps {'devId': 'NUM', 'dps': {'1': bool}, 't': NUM, 's': NUM}
+        return(True,data)
+        
+        #start=data.find(PROTOCOL_VERSION_BYTES)
+        #if(start == -1): #if not found
+        #    if(len(data)<=28):
+        #        return (True,data) #no information from set command (data to small)
+        #                           #the data should be like that:
+        #                           #b'\x00\x00U\xaa\x00\x00\x00\x00\x00\x00\x00\x07\x00\x00\x00\x0c\x00\x00\x00\x00x\x93p\x91\x00\x00\xaaU'
+        #    else:
+        #        log.debug('Unexpected status() payload=%r', data)
+        #        return (True,data)
+        #else:
+        #    result=data[start:-8]
+        #    result = result[len(PROTOCOL_VERSION_BYTES):]  # remove version header
+        #    result = result[16:]  # remove (what I'm guessing, but not confirmed is) 16-bytes of MD5 hexdigest of payload
+        #    cipher = AESCipher(self.local_key)
+        #    result = cipher.decrypt(result)
+        #    if not isinstance(result, str):
+        #        result = result.decode()
+        #    result = json.loads(result)
+        #    return (False,result)
+    
+    def status(self,retry=0):
+        log.debug('status() entry')
+        payload = self.generate_payload('status')
         data = self._send_receive(payload)
         log.debug('status received data=%r', data)
 
-        result = data[20:-8]  # hard coded offsets
-        log.debug('result=%r', result)
-        #result = data[data.find('{'):data.rfind('}')+1]  # naive marker search, hope neither { nor } occur in header/footer
-        #print('result %r' % result)
-        if result.startswith(b'{'):
-            # this is the regular expected code path
-            if not isinstance(result, str):
-                result = result.decode()
-            result = json.loads(result)
-        elif result.startswith(PROTOCOL_VERSION_BYTES):
-            # got an encrypted payload, happens occasionally
-            # expect resulting json to look similar to:: {"devId":"ID","dps":{"1":true,"2":0},"t":EPOCH_SECS,"s":3_DIGIT_NUM}
-            # NOTE dps.2 may or may not be present
-            result = result[len(PROTOCOL_VERSION_BYTES):]  # remove version header
-            result = result[16:]  # remove (what I'm guessing, but not confirmed is) 16-bytes of MD5 hexdigest of payload
-            cipher = AESCipher(self.local_key)
-            result = cipher.decrypt(result)
-            log.debug('decrypted result=%r', result)
-            if not isinstance(result, str):
-                result = result.decode()
-            result = json.loads(result)
+        (error,result) = self.extract_payload(data)
+        if(error):
+            if(retry<=10):#10 retry should be enough (observed only 1 retry)
+                return self.status(retry+1)
+            else:
+                raise TypeError('Unexpected status() payload=%r', data)
         else:
-            log.error('Unexpected status() payload=%r', result)
-
-        return result
-
+            return result
+    
     def set_status(self, on, switch=1):
         """
         Set status of the device to 'on' or 'off'.
@@ -289,24 +348,30 @@ class Device(XenonDevice):
             on(bool):  True for 'on', False for 'off'.
             switch(int): The switch to set
         """
-        # open device, send request, then close connection
+
         if isinstance(switch, int):
             switch = str(switch)  # index and payload is a string
         payload = self.generate_payload(SET, {switch:on})
-        #print('payload %r' % payload)
 
         data = self._send_receive(payload)
         log.debug('set_status received data=%r', data)
 
         return data
+        #(error,result) = self.extract_payload(data)
+        #if(not error):
+        #   return result
+        #else:
+        #   return ""
+        #else:
+        #   return self.status()
 
     def turn_on(self, switch=1):
         """Turn the device on"""
-        self.set_status(True, switch)
+        return self.set_status(True, switch)
 
     def turn_off(self, switch=1):
         """Turn the device off"""
-        self.set_status(False, switch)
+        return self.set_status(False, switch)
 
     def set_timer(self, num_secs):
         """
@@ -502,7 +567,7 @@ class BulbDevice(Device):
         
         if not colourtemp==None:
             data_payload[self.DPS_INDEX_COLOURTEMP]=colourtemp
-			
+            
         payload = self.generate_payload(SET, data_payload)
 
         data = self._send_receive(payload)
