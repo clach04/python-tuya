@@ -27,6 +27,10 @@ except ImportError:
     import pyaes  # https://github.com/ricmoo/pyaes
 
 
+version_tuple = (7, 0, 1)
+version = version_string = __version__ = '%d.%d.%d' % version_tuple
+__author__ = 'clach04'
+
 log = logging.getLogger(__name__)
 logging.basicConfig()  # TODO include function name/line numbers in log
 #log.setLevel(level=logging.DEBUG)  # Debug hack!
