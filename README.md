@@ -62,3 +62,4 @@ These devices uses AES encryption, this is not available in Python standard libr
   * mike-gracia for improved Python version support
   * samuscherer for RGB Bulb support
   * magneticflux- for improved Python version support
+  * sean6541 - for initial PyPi package and Home Assistant support <https://github.com/sean6541/tuya-homeassistant>
