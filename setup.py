@@ -16,12 +16,22 @@ Suggested setup.py parameters:
     * install
     * sdist  --formats=zip
     * sdist  # NOTE requires tar/gzip commands
+
+PyPi:
+
+    twine upload dist/*
+
 """)
 
 here = os.path.abspath(os.path.dirname(__file__))
 
-with codecs.open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
-    long_description = f.read()
+readme_filename = os.path.join(here, 'README.md')
+if os.path.exists(readme_filename):
+    with codecs.open(readme_filename, encoding='utf-8') as f:
+        long_description = f.read()
+else:
+    long_description = None
+
 
 setup(
     name='pytuya',
