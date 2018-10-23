@@ -153,8 +153,15 @@ class XenonDevice(object):
 
         self.port = 6668  # default - do not expect caller to pass in
 
+        self.s = None # persistent socket
+
     def __repr__(self):
         return '%r' % ((self.id, self.address),)  # FIXME can do better than this
+
+    def disconnect(self):
+        """ close the connection """
+        self.s.close()
+        self.s = None
 
     def _send_receive(self, payload):
         """
@@ -163,15 +170,41 @@ class XenonDevice(object):
         Args:
             payload(bytes): Data to send.
         """
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        s.settimeout(self.connection_timeout)
-        s.connect((self.address, self.port))
-        s.send(payload)
-        data = s.recv(1024)
-        s.close()
-        return data
-
+               
+        if(self.s == None):
+            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            self.s.settimeout(self.connection_timeout)
+            try:
+                self.s.connect((self.address, self.port))
+            except:
+                pass
+                
+        cpt_connect=0   
+        while(cpt_connect<10): # guess 10 is enough
+            try:
+                self.s.send(payload)
+                data = self.s.recv(4096)
+                cpt_connect=10
+            except (ConnectionResetError, ConnectionRefusedError, BrokenPipeError) as e:
+                cpt_connect = cpt_connect+1
+                if(cpt_connect==10):
+                    raise e
+                self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                self.s.settimeout(self.connection_timeout)
+                self.s.connect((self.address, self.port))
+            except socket.timeout as e:
+                cpt_connect = cpt_connect+1
+                if(cpt_connect==2):#stop after the first retry to avoid to long blocking time 
+                    raise e
+                self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                self.s.settimeout(self.connection_timeout)
+                self.s.connect((self.address, self.port))
+            
+        return data 
+        
     def generate_payload(self, command, data=None):
         """
         Generate the payload to send.
@@ -251,40 +284,68 @@ class Device(XenonDevice):
     def __init__(self, dev_id, address, local_key=None, dev_type=None):
         super(Device, self).__init__(dev_id, address, local_key, dev_type)
     
-    def status(self):
-        log.debug('status() entry')
-        # open device, send request, then close connection
-        payload = self.generate_payload('status')
+    def extract_payload(self,data):
+        """ Return the dps status in json format in a tuple (bool,json)
+            if(bool): an error occur and the json is not relevant
+            else: no error detected and the status is in json format
+        
+        Args:
+            data: The data received by _send_receive function       
+        """ 
 
+        #if non encrypted data
+        start=data.find(b'{"devId')
+        if(start!=-1):
+            result = data[start:] #in 2 steps to deal with the case where '}}' is present before {"devId'
+            end=result.find(b'}}')
+            if(end==-1):
+                return (True,data)
+            else:
+                end=end+2
+            result = result[:end]
+            
+            #log.debug('result=%r', result)
+            if not isinstance(result, str):
+                result = result.decode()
+            result = json.loads(result)
+            return (False,result)
+        
+        #encrypted data: incomplete dps {'devId': 'NUM', 'dps': {'1': bool}, 't': NUM, 's': NUM}
+        return (True,data)
+        
+        #start=data.find(PROTOCOL_VERSION_BYTES)
+        #if(start == -1): #if not found
+        #    if(len(data)<=28):
+        #        return (True,data) #no information from set command (data to small)
+        #    else:
+        #        log.debug('Unexpected status() payload=%r', data)
+        #        return (True,data)
+        #else:
+        #    result=data[start:-8]
+        #    result = result[len(PROTOCOL_VERSION_BYTES):]  # remove version header
+        #    result = result[16:]  # remove (what I'm guessing, but not confirmed is) 16-bytes of MD5 hexdigest of payload
+        #    cipher = AESCipher(self.local_key)
+        #    result = cipher.decrypt(result)
+        #    if not isinstance(result, str):
+        #        result = result.decode()
+        #    result = json.loads(result)
+        #    return (False,result)
+    
+    def status(self,retry=0):
+        log.debug('status() entry')
+        payload = self.generate_payload('status')
         data = self._send_receive(payload)
         log.debug('status received data=%r', data)
 
-        result = data[20:-8]  # hard coded offsets
-        log.debug('result=%r', result)
-        #result = data[data.find('{'):data.rfind('}')+1]  # naive marker search, hope neither { nor } occur in header/footer
-        #print('result %r' % result)
-        if result.startswith(b'{'):
-            # this is the regular expected code path
-            if not isinstance(result, str):
-                result = result.decode()
-            result = json.loads(result)
-        elif result.startswith(PROTOCOL_VERSION_BYTES):
-            # got an encrypted payload, happens occasionally
-            # expect resulting json to look similar to:: {"devId":"ID","dps":{"1":true,"2":0},"t":EPOCH_SECS,"s":3_DIGIT_NUM}
-            # NOTE dps.2 may or may not be present
-            result = result[len(PROTOCOL_VERSION_BYTES):]  # remove version header
-            result = result[16:]  # remove (what I'm guessing, but not confirmed is) 16-bytes of MD5 hexdigest of payload
-            cipher = AESCipher(self.local_key)
-            result = cipher.decrypt(result)
-            log.debug('decrypted result=%r', result)
-            if not isinstance(result, str):
-                result = result.decode()
-            result = json.loads(result)
+        (error,result) = self.extract_payload(data)
+        if(error):
+            if(retry<=10):#10 retry should be enough (observed only 1 retry)
+                return self.status(retry+1)
+            else:
+                raise TypeError('Unexpected status() payload=%r', data)
         else:
-            log.error('Unexpected status() payload=%r', result)
-
-        return result
-
+            return result
+    
     def set_status(self, on, switch=1):
         """
         Set status of the device to 'on' or 'off'.
@@ -293,24 +354,30 @@ class Device(XenonDevice):
             on(bool):  True for 'on', False for 'off'.
             switch(int): The switch to set
         """
-        # open device, send request, then close connection
+
         if isinstance(switch, int):
             switch = str(switch)  # index and payload is a string
         payload = self.generate_payload(SET, {switch:on})
-        #print('payload %r' % payload)
 
         data = self._send_receive(payload)
         log.debug('set_status received data=%r', data)
 
         return data
+        #(error,result) = self.extract_payload(data)
+        #if(not error):
+        #   return result
+        #else:
+        #   return ""
+        #else:
+        #   return self.status()
 
     def turn_on(self, switch=1):
         """Turn the device on"""
-        self.set_status(True, switch)
+        return self.set_status(True, switch)
 
     def turn_off(self, switch=1):
         """Turn the device off"""
-        self.set_status(False, switch)
+        return self.set_status(False, switch)
 
     def set_timer(self, num_secs):
         """
@@ -340,15 +407,26 @@ class OutletDevice(Device):
         super(OutletDevice, self).__init__(dev_id, address, local_key, dev_type)
 
 class BulbDevice(Device):
-    DPS_INDEX_ON         = '1'
-    DPS_INDEX_MODE       = '2'
-    DPS_INDEX_BRIGHTNESS = '3'
-    DPS_INDEX_COLOURTEMP = '4'
-    DPS_INDEX_COLOUR     = '5'
+    DPS_INDEX_ON           = '1'
+    DPS_INDEX_MODE         = '2'
+    DPS_INDEX_BRIGHTNESS   = '3'
+    DPS_INDEX_COLOURTEMP   = '4'
+    DPS_INDEX_COLOUR       = '5'
+    DPS_INDEX_COLOUR_SCENE = '6'
 
-    DPS             = 'dps'
-    DPS_MODE_COLOUR = 'colour'
-    DPS_MODE_WHITE  = 'white'
+    DPS                   = 'dps'
+    DPS_MODE_COLOUR       = 'colour'
+    DPS_MODE_COLOUR_SCENE = 'scene'
+    DPS_MODE_WHITE        = 'white'
+
+    DPS_2_STATE = {
+                '1':'is_on',
+                '2':'mode',
+                '3':'brightness',
+                '4':'colourtemp',
+                '5':'colour',
+                '6':'colour_scene'
+                }
 
     def __init__(self, dev_id, address, local_key=None):
         dev_type = 'device'
@@ -441,7 +519,7 @@ class BulbDevice(Device):
         if not 0 <= b <= 255:
             raise ValueError("The value for blue needs to be between 0 and 255.")
 
-        print(BulbDevice)
+        #print(BulbDevice)
         hexvalue = BulbDevice._rgb_to_hexvalue(r, g, b)
 
         payload = self.generate_payload(SET, {
@@ -449,8 +527,33 @@ class BulbDevice(Device):
             self.DPS_INDEX_COLOUR: hexvalue})
         data = self._send_receive(payload)
         return data
+        
+    def set_colour_scene(self, r, g, b):
+        """
+        Set colour scene of an rgb bulb.
 
-    def set_white(self, brightness, colourtemp):
+        Args:
+            r(int): Value for the colour red as int from 0-255.
+            g(int): Value for the colour green as int from 0-255.
+            b(int): Value for the colour blue as int from 0-255.
+        """
+        if not 0 <= r <= 255:
+            raise ValueError("The value for red needs to be between 0 and 255.")
+        if not 0 <= g <= 255:
+            raise ValueError("The value for green needs to be between 0 and 255.")
+        if not 0 <= b <= 255:
+            raise ValueError("The value for blue needs to be between 0 and 255.")
+
+        #print(BulbDevice)
+        hexvalue = BulbDevice._rgb_to_hexvalue(r, g, b)
+
+        payload = self.generate_payload(SET, {
+            self.DPS_INDEX_MODE: self.DPS_MODE_COLOUR_SCENE,
+            self.DPS_INDEX_COLOUR_SCENE: hexvalue})
+        data = self._send_receive(payload)
+        return data
+        
+    def set_white(self, brightness, colourtemp=None):
         """
         Set white coloured theme of an rgb bulb.
 
@@ -460,13 +563,18 @@ class BulbDevice(Device):
         """
         if not 25 <= brightness <= 255:
             raise ValueError("The brightness needs to be between 25 and 255.")
-        if not 0 <= colourtemp <= 255:
-            raise ValueError("The colour temperature needs to be between 0 and 255.")
+        if not colourtemp==None:
+            if not 0 <= colourtemp <= 255:
+                raise ValueError("The colour temperature needs to be between 0 and 255.")
 
-        payload = self.generate_payload(SET, {
+        data_payload = {
             self.DPS_INDEX_MODE: self.DPS_MODE_WHITE,
-            self.DPS_INDEX_BRIGHTNESS: brightness,
-            self.DPS_INDEX_COLOURTEMP: colourtemp})
+            self.DPS_INDEX_BRIGHTNESS: brightness}
+        
+        if not colourtemp==None:
+            data_payload[self.DPS_INDEX_COLOURTEMP]=colourtemp
+            
+        payload = self.generate_payload(SET, data_payload)
 
         data = self._send_receive(payload)
         return data
@@ -511,19 +619,28 @@ class BulbDevice(Device):
         """Return colour as RGB value"""
         hexvalue = self.status()[self.DPS][self.DPS_INDEX_COLOUR]
         return BulbDevice._hexvalue_to_rgb(hexvalue)
+        
+    def colour_rgb_scene(self):
+        """Return colour scene as RGB value"""
+        hexvalue = self.status()[self.DPS][self.DPS_INDEX_COLOUR_SCENE]
+        return BulbDevice._hexvalue_to_rgb(hexvalue)
 
     def colour_hsv(self):
         """Return colour as HSV value"""
         hexvalue = self.status()[self.DPS][self.DPS_INDEX_COLOUR]
         return BulbDevice._hexvalue_to_hsv(hexvalue)
 
+    def colour_hsv_scene(self):
+        """Return colour scene as HSV value"""
+        hexvalue = self.status()[self.DPS][self.DPS_INDEX_COLOUR_SCENE]
+        return BulbDevice._hexvalue_to_hsv(hexvalue)
+        
     def state(self):
         status = self.status()
-        state = {
-            'is_on'      : status[self.DPS][self.DPS_INDEX_ON],
-            'mode'       : status[self.DPS][self.DPS_INDEX_MODE],
-            'brightness' : status[self.DPS][self.DPS_INDEX_BRIGHTNESS],
-            'colourtemp' : status[self.DPS][self.DPS_INDEX_COLOURTEMP],
-            'colour'     : status[self.DPS][self.DPS_INDEX_COLOUR],
-            }
+        state = {}
+
+        for key in status[self.DPS].keys():
+            if(int(key)<=6):
+                state[self.DPS_2_STATE[key]]=status[self.DPS][key]
+
         return state
