@@ -163,14 +163,18 @@ class XenonDevice(object):
         Args:
             payload(bytes): Data to send.
         """
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        s.settimeout(self.connection_timeout)
-        s.connect((self.address, self.port))
-        s.send(payload)
-        data = s.recv(1024)
-        s.close()
-        return data
+        for i in range(3):
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                s.settimeout(self.connection_timeout)
+                s.connect((self.address, self.port))
+                s.send(payload)
+                data = s.recv(1024)
+                s.close()
+                return data
+            except socket.error:
+                continue
 
     def generate_payload(self, command, data=None):
         """
