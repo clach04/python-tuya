@@ -173,8 +173,11 @@ class XenonDevice(object):
                 data = s.recv(1024)
                 s.close()
                 return data
-            except socket.error:
-                continue
+            except socket.error as e:
+                if i == 2:
+                    raise ConnectionError(e)
+                else:
+                    continue
 
     def generate_payload(self, command, data=None):
         """
