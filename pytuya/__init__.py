@@ -163,21 +163,14 @@ class XenonDevice(object):
         Args:
             payload(bytes): Data to send.
         """
-        for i in range(3):
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-                s.settimeout(self.connection_timeout)
-                s.connect((self.address, self.port))
-                s.send(payload)
-                data = s.recv(1024)
-                s.close()
-                return data
-            except socket.error as e:
-                if i == 2:
-                    raise ConnectionError(e)
-                else:
-                    continue
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        s.settimeout(self.connection_timeout)
+        s.connect((self.address, self.port))
+        s.send(payload)
+        data = s.recv(1024)
+        s.close()
+        return data
 
     def generate_payload(self, command, data=None):
         """
@@ -305,9 +298,15 @@ class Device(XenonDevice):
             switch = str(switch)  # index and payload is a string
         payload = self.generate_payload(SET, {switch:on})
         #print('payload %r' % payload)
-
-        data = self._send_receive(payload)
-        log.debug('set_status received data=%r', data)
+        for i in range(3):
+            try:
+                data = self._send_receive(payload)
+                log.debug('set_status received data=%r', data)
+            except Exception:
+                if i == 2:
+                    raise Exception('set_status failed after 3 consecutive attempts')
+                else:
+                    continue
 
         return data
 
