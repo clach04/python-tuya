@@ -8,110 +8,28 @@
 #
 # Tested with Python 2.7 and Python 3.6.1 only
 
-import base64
 from hashlib import md5
 import json
 import logging
 import socket
-import sys
 import time
-import colorsys
-
-try:
-    # raise ImportError
-    import Crypto
-    from Crypto.Cipher import AES  # PyCrypto
-except ImportError:
-    Crypto = AES = None
-    import pyaes  # https://github.com/ricmoo/pyaes
-
-version_tuple = (7, 0, 3)
-version = version_string = __version__ = '%d.%d.%d' % version_tuple
-__author__ = 'clach04'
+from pytuya.utils import hex2bin, bin2hex, AESCipher, Colour
 
 log = logging.getLogger(__name__)
 logging.basicConfig()  # TODO include function name/line numbers in log
-# log.setLevel(level=logging.DEBUG)  # Debug hack!
-
-log.info('Python %s on %s', sys.version, sys.platform)
-if Crypto is None:
-    log.info('Using pyaes version %r', pyaes.VERSION)
-    log.info('Using pyaes from %r', pyaes.__file__)
-else:
-    log.info('Using PyCrypto %r', Crypto.version_info)
-    log.info('Using PyCrypto from %r', Crypto.__file__)
 
 SET = 'set'
-
 PROTOCOL_VERSION_BYTES = b'3.1'
-
-IS_PY2 = sys.version_info[0] == 2
-
-
-class AESCipher(object):
-    def __init__(self, key):
-        self.bs = 16
-        self.key = key
-
-    def encrypt(self, raw):
-        if Crypto:
-            raw = self._pad(raw)
-            cipher = AES.new(self.key, mode=AES.MODE_ECB)
-            crypted_text = cipher.encrypt(raw)
-        else:
-            _ = self._pad(raw)
-            cipher = pyaes.blockfeeder.Encrypter(pyaes.AESModeOfOperationECB(self.key))  # no IV, auto pads to 16
-            crypted_text = cipher.feed(raw)
-            crypted_text += cipher.feed()  # flush final block
-        crypted_text_b64 = base64.b64encode(crypted_text)
-        return crypted_text_b64
-
-    def decrypt(self, enc):
-        enc = base64.b64decode(enc)
-        if Crypto:
-            cipher = AES.new(self.key, AES.MODE_ECB)
-            raw = cipher.decrypt(enc)
-            return self._unpad(raw).decode('utf-8')
-        else:
-            cipher = pyaes.blockfeeder.Decrypter(pyaes.AESModeOfOperationECB(self.key))  # no IV, auto pads to 16
-            plain_text = cipher.feed(enc)
-            plain_text += cipher.feed()  # flush final block
-            return plain_text
-
-    def _pad(self, s):
-        padnum = self.bs - len(s) % self.bs
-        return s + padnum * chr(padnum).encode()
-
-    @staticmethod
-    def _unpad(s):
-        return s[:-ord(s[len(s) - 1:])]
-
-
-def bin2hex(x, pretty=False):
-    space = ' ' if pretty else ''
-    if IS_PY2:
-        x = [ord(xi) for xi in x]
-
-    return ''.join('%02X%s' % (y, space) for y in x)
-
-
-def hex2bin(x):
-    if IS_PY2:
-        return x.decode('hex')
-    else:
-        return bytes.fromhex(x)
 
 
 # This is intended to match requests.json payload at https://github.com/codetheweb/tuyapi
 payload_dict = {
     "device": {
         "status": {
-            "hexByte": "0a",
-            "command": {"gwId": "", "devId": ""}
+            "hexByte": "0a", "command": {"gwId": "", "devId": ""}
         },
         "set": {
-            "hexByte": "07",
-            "command": {"devId": "", "uid": "", "t": ""}
+            "hexByte": "07", "command": {"devId": "", "uid": "", "t": ""}
         },
         "prefix": "000055aa00000000000000",
         # Next byte is command byte ("hexByte") some zero padding, then length of remaining payload, i.e. command
@@ -196,8 +114,7 @@ class XenonDevice(object):
             pre_md5_str = b'data=' + json_payload + b'||lpv=' + PROTOCOL_VERSION_BYTES + b'||' + self.local_key
             m = md5()
             m.update(pre_md5_str)
-            hexdigest = m.hexdigest()
-            json_payload = PROTOCOL_VERSION_BYTES + hexdigest[8:][:16].encode('latin1') + json_payload
+            json_payload = PROTOCOL_VERSION_BYTES + m.hexdigest()[8:][:16].encode('latin1') + json_payload
             self.cipher = None  # expect to connect and then disconnect to set new
 
         postfix_payload = hex2bin(bin2hex(json_payload) + payload_dict[self.dev_type]['suffix'])
@@ -314,73 +231,6 @@ class BulbDevice(Device):
         dev_type = 'device'
         super(BulbDevice, self).__init__(dev_id, address, local_key, dev_type)
 
-    @staticmethod
-    def _rgb_to_hexvalue(r, g, b):
-        """ Convert an RGB value to the hex representation expected by tuya.
-        
-        Index '5' (DPS_INDEX_COLOUR) is assumed to be in the format:
-        rrggbb0hhhssvv
-        
-        While r, g and b are just hexadecimal values of the corresponding
-        Red, Green and Blue values, the h, s and v values (which are values
-        between 0 and 1) are scaled to 360 (h) and 255 (s and v) respectively.
-        
-        Args:
-            r(int): Value for the colour red as int from 0-255.
-            g(int): Value for the colour green as int from 0-255.
-            b(int): Value for the colour blue as int from 0-255.
-        """
-        rgb = [r, g, b]
-        hsv = colorsys.rgb_to_hsv(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255)
-
-        hexvalue = ""
-        for value in rgb:
-            temp = str(hex(int(value))).replace("0x", "")
-            if len(temp) == 1:
-                temp = "0" + temp
-            hexvalue = hexvalue + temp
-
-        hsvarray = [int(hsv[0] * 360), int(hsv[1] * 255), int(hsv[2] * 255)]
-        hexvalue_hsv = ""
-        for value in hsvarray:
-            temp = str(hex(int(value))).replace("0x", "")
-            if len(temp) == 1:
-                temp = "0" + temp
-            hexvalue_hsv = hexvalue_hsv + temp
-        if len(hexvalue_hsv) == 7:
-            hexvalue = hexvalue + "0" + hexvalue_hsv
-        else:
-            hexvalue = hexvalue + "00" + hexvalue_hsv
-
-        return hexvalue
-
-    @staticmethod
-    def _hexvalue_to_rgb(hexvalue):
-        """
-        Converts the hexvalue used by tuya for colour representation into an RGB value.
-        
-        Args:
-            hexvalue(string): The hex representation generated by BulbDevice._rgb_to_hexvalue()
-        """
-        r = int(hexvalue[0:2], 16)
-        g = int(hexvalue[2:4], 16)
-        b = int(hexvalue[4:6], 16)
-        return r, g, b
-
-    @staticmethod
-    def _hexvalue_to_hsv(hexvalue):
-        """
-        Converts the hexvalue used by tuya for colour representation into an HSV value.
-        
-        Args:
-            hexvalue(string): The hex representation generated by BulbDevice._rgb_to_hexvalue()
-        """
-        h = int(hexvalue[7:10], 16) / 360
-        s = int(hexvalue[10:12], 16) / 255
-        v = int(hexvalue[12:14], 16) / 255
-
-        return (h, s, v)
-
     def set_colour(self, r, g, b):
         """ Set colour of an rgb bulb.
 
@@ -397,30 +247,30 @@ class BulbDevice(Device):
             raise ValueError("The value for blue needs to be between 0 and 255.")
 
         print(BulbDevice)
-        hexvalue = BulbDevice._rgb_to_hexvalue(r, g, b)
+        hex_value = Colour.rgb_to_hex_value(r, g, b)
 
         payload = self.generate_payload(SET, {
             self.DPS_INDEX_MODE: self.DPS_MODE_COLOUR,
-            self.DPS_INDEX_COLOUR: hexvalue})
+            self.DPS_INDEX_COLOUR: hex_value})
         data = self._send_receive(payload)
         return data
 
-    def set_white(self, brightness, colourtemp):
+    def set_white(self, brightness, colour_temp):
         """ Set white coloured theme of an rgb bulb.
 
         Args:
             brightness(int): Value for the brightness (25-255).
-            colourtemp(int): Value for the colour temperature (0-255).
+            colour_temp(int): Value for the colour temperature (0-255).
         """
         if not 25 <= brightness <= 255:
             raise ValueError("The brightness needs to be between 25 and 255.")
-        if not 0 <= colourtemp <= 255:
+        if not 0 <= colour_temp <= 255:
             raise ValueError("The colour temperature needs to be between 0 and 255.")
 
         payload = self.generate_payload(SET, {
             self.DPS_INDEX_MODE: self.DPS_MODE_WHITE,
             self.DPS_INDEX_BRIGHTNESS: brightness,
-            self.DPS_INDEX_COLOURTEMP: colourtemp})
+            self.DPS_INDEX_COLOURTEMP: colour_temp})
 
         data = self._send_receive(payload)
         return data
@@ -438,16 +288,16 @@ class BulbDevice(Device):
         data = self._send_receive(payload)
         return data
 
-    def set_colourtemp(self, colourtemp):
+    def set_colour_temp(self, colour_temp):
         """ Set the colour temperature of an rgb bulb.
 
         Args:
-            colourtemp(int): Value for the colour temperature (0-255).
+            colour_temp(int): Value for the colour temperature (0-255).
         """
-        if not 0 <= colourtemp <= 255:
+        if not 0 <= colour_temp <= 255:
             raise ValueError("The colour temperature needs to be between 0 and 255.")
 
-        payload = self.generate_payload(SET, {self.DPS_INDEX_COLOURTEMP: colourtemp})
+        payload = self.generate_payload(SET, {self.DPS_INDEX_COLOURTEMP: colour_temp})
         data = self._send_receive(payload)
         return data
 
@@ -455,27 +305,25 @@ class BulbDevice(Device):
         """ Return brightness value """
         return self.status()[self.DPS][self.DPS_INDEX_BRIGHTNESS]
 
-    def colourtemp(self):
+    def colour_temp(self):
         """ Return colour temperature """
         return self.status()[self.DPS][self.DPS_INDEX_COLOURTEMP]
 
     def colour_rgb(self):
         """ Return colour as RGB value """
-        hexvalue = self.status()[self.DPS][self.DPS_INDEX_COLOUR]
-        return BulbDevice._hexvalue_to_rgb(hexvalue)
+        hex_value = self.status()[self.DPS][self.DPS_INDEX_COLOUR]
+        return Colour.hex_value_to_rgb(hex_value)
 
     def colour_hsv(self):
         """ Return colour as HSV value """
-        hexvalue = self.status()[self.DPS][self.DPS_INDEX_COLOUR]
-        return BulbDevice._hexvalue_to_hsv(hexvalue)
+        hex_value = self.status()[self.DPS][self.DPS_INDEX_COLOUR]
+        return Colour.hex_value_to_hsv(hex_value)
 
     def state(self):
-        status = self.status()
-        state = {
-            'is_on': status[self.DPS][self.DPS_INDEX_ON],
-            'mode': status[self.DPS][self.DPS_INDEX_MODE],
-            'brightness': status[self.DPS][self.DPS_INDEX_BRIGHTNESS],
-            'colourtemp': status[self.DPS][self.DPS_INDEX_COLOURTEMP],
-            'colour': status[self.DPS][self.DPS_INDEX_COLOUR],
-        }
-        return state
+        dps = self.status()[self.DPS]
+        return dict(is_on=dps[self.DPS_INDEX_ON],
+                    mode=dps[self.DPS_INDEX_MODE],
+                    brightness=dps[self.DPS_INDEX_BRIGHTNESS],
+                    colourtemp=dps[self.DPS_INDEX_COLOURTEMP],
+                    colour=dps[self.DPS_INDEX_COLOUR])
+
