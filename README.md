@@ -30,7 +30,7 @@ Known to work with:
     - Find the package with the longest response by the server
     - Copy all information from the response body to your computer (e.g. via email)
     - Use pytuya to extract key from the response stored inside a file:
-      ``pytuya extract response.txt``
+      ``pytuya utils extract_keys response.txt``
   - IOS 
     - > TODO
 
@@ -38,7 +38,73 @@ Known to work with:
   - https://github.com/clach04/python-tuya/wiki has further information for how to get device id and local key.
 (the device id can be seen in Jinvoo Smart app, under "Device Info").
 
-## CLI-Demo
+## CLI - Commandline Interface
+The command line tool ``pytuya`` can be used to send actions to devices. Simply executing ``pytuya`` after 
+installing displays the following options:
+
+    >pytuya
+    Usage: pytuya [OPTIONS] COMMAND [ARGS]...
+    
+    Options:
+      -l, --debug / --no-debug
+      -c, --config_path PATH
+      --help                    Show this message and exit.
+    
+    Commands:
+      bulb
+      cover
+      outlet
+      update_config
+      utils
+
+In order to use this client interface, it is first necessary to update the configuration, which should
+a name, ip, id and local key used for encryption for each device. Given a recorded API response extracted
+from the app using SSL Capture (see above), the configuration can be automatically built as following:
+
+    > pytuya update_config example_response.txt
+
+    INFO:root:Querying devices
+    WARNING:root:wrote config at C:\Users\username\pytuya.yaml with content:
+    
+      Bedroom Blinds:
+        id: 51870625b4e62e4b2fc4
+        ip: 192.168.1.116
+        key: afab3d41b839c54c
+      Bedroom Lights:
+        id: 5517064584f3ec2e4095
+        ip: 192.168.1.210
+        key: bfa4804827714672
+
+Once this config file exists, actions can be sent to the corresponding devices by referencing them via name:
+
+    > pytuya cover close "bedroom blinds"
+    
+    INFO:root:sending close to device bedroom blinds at 192.168.1.116
+
+In order to get help, simply use the ``--help`` flag, e.g.:
+
+    > pytuya bulb --help
+    
+    Usage: pytuya bulb [OPTIONS] COMMAND [ARGS]...
+    
+    Options:
+      --help  Show this message and exit.
+    
+    Commands:
+      brightness  set brightness of device
+      colour      set colour of device using provided R, G, B...
+      off         sends turn off action to device
+      on          sends turn on action to device
+      state       sends turn off action to device
+
+    > pytuya bulb colour --help
+    Usage: pytuya bulb colour [OPTIONS] NAME [R] [G] [B]
+    
+      set colour of device using provided R, G, B (red green and blue)
+    
+    Options:
+      --help  Show this message and exit.
+
 
 ## API-Demo:
 

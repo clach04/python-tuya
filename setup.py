@@ -55,9 +55,12 @@ setup(
         'Topic :: Home Automation',
     ],
     keywords='home automation',
-    packages=['pytuya'],
+    packages=['pytuya', 'pytuya.cli'],
     platforms='any',
     install_requires=[
           'pyaes',  # NOTE this is optional, AES can be provided via PyCrypto or PyCryptodome
       ],
+    entry_points={
+        'console_scripts': ['pytuya=pytuya.cli:main'],
+    }
 )
