@@ -59,6 +59,8 @@ setup(
     platforms='any',
     install_requires=[
           'pyaes',  # NOTE this is optional, AES can be provided via PyCrypto or PyCryptodome
+          'pyyaml',
+          'click'
       ],
     entry_points={
         'console_scripts': ['pytuya=pytuya.cli:main'],

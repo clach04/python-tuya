@@ -4,7 +4,7 @@ import yaml
 import os
 
 
-def_config_path = os.path.join(os.path.expanduser("~"), "pytuya.yaml")
+def_config_path = os.path.join(os.path.expanduser("~"), ".pytuya.yaml")
 
 
 class Config(dict):
@@ -17,13 +17,14 @@ class Config(dict):
     @path.setter
     def path(self, value):
         self._path = value
-        with open(self._path, "r") as f:
-            content = yaml.load(f.read())
+        if os.path.isfile(value):
+            with open(self._path, "r") as f:
+                content = yaml.load(f.read())
 
-            if content is None:
-                raise RuntimeError("Invalid Config: %s " % self.path)
+                if content is None:
+                    raise RuntimeError("Invalid Config: %s " % self.path)
 
-            super().update(content)
+                super().update(content)
 
     def __str__(self):
         return yaml.dump(dict(**self), default_flow_style=False)
@@ -104,8 +105,6 @@ def update_config(api_response_path):
     # updates a config file using info extracted from api response and queried devices
     new_config = build_config(api_response_path)
     config.update(new_config)
-
-
 
 
 if __name__ == "__main__":
