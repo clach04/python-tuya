@@ -105,6 +105,22 @@ In order to get help, simply use the ``--help`` flag, e.g.:
     Options:
       --help  Show this message and exit.
 
+### HomeAssistant Integration
+HomeAssistant does already support tuya devices via the official cloud API. However, the direct communication
+of the pytuya package may be preferable to relying on cloud services (pytuya works regardless of internet connectivity).
+To use pytuya in HomeAssistant, simply use the commandline device components. 
+Here's an example configuration for a cover device with the name "bedroom blinds":
+
+```yaml
+cover:
+  - platform: command_line
+    covers:
+      bedroom:
+        command_open: pytuya cover open "bedroom blinds"
+        command_close: pytuya cover close "bedroom blinds"
+        command_stop: pytuya cover stop "bedroom blinds"
+```
+Note that pytuya needs to be set up first before these commands can work (see ``pytuya update_config``)
 
 ## API-Demo:
 
