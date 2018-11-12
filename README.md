@@ -3,20 +3,44 @@
 [![Build Status](https://travis-ci.org/clach04/python-tuya.svg?branch=master)](https://travis-ci.org/clach04/python-tuya)
 
 Python 2.7 and Python 3.6.1 interface to ESP8266MOD WiFi smart devices from Shenzhen Xenon.
-If you are using the Jinvoo Smart App, this allows local control over the LAN.
-NOTE requires the devices to have already been **activated** by Jinvoo Smart App (or similar).
+If you are using the Jinvoo Smart app, this allows local control over the LAN.
+NOTE requires the devices to have already been **activated** by Jinvoo Smart app (or similar).
 
-## Key extraction
-
-https://github.com/clach04/python-tuya/wiki has background information for how to get device id and local key.
-(the device id can be seen in Jinvoo Smart App, under "Device Info").
 
 Known to work with:
   * SKYROKU SM-PW701U Wi-Fi Plug Smart Plug - see https://wikidevi.com/wiki/Xenon_SM-PW701U
   * Wuudi SM-S0301-US - WIFI Smart Power Socket Multi Plug with 4 AC Outlets and 4 USB Charging
+  * Jinvoo WiFi Curtain / Roller Shutter Switch
 
 
-Demo:
+## Key extraction
+
+- background knowledge
+  - The ``local-key`` is used for AES-based encryption of the messages sent between device and client. 
+  - Key changes every time the device is reset and paired to a new account (e.g. using app)
+  - Key and further meta-data is regularly requested by the app from the cloud-server via HTTPS requests 
+  - The request responses can be recorded by apps to extract the key and further data (such as name, ip, state, etc.)
+- how to extract key
+  - Android
+    - Install your app used for setup and paring (tested with TuyaSmart)
+    - Install [SSL Capture](https://play.google.com/store/apps/details?id=com.minhui.networkcapture)
+    - Change app settings to only record your pairing app and start recording
+    - Go inside app and do something with one of your devices
+    - Go back inside the SSL Capture app, stop the recording
+    - Find the package with the longest response by the server
+    - Copy all information from the response body to your computer (e.g. via email)
+    - Use pytuya to extract key from the response stored inside a file:
+      ``pytuya extract response.txt``
+  - IOS 
+    - > TODO
+
+- further resources:
+  - https://github.com/clach04/python-tuya/wiki has further information for how to get device id and local key.
+(the device id can be seen in Jinvoo Smart app, under "Device Info").
+
+## CLI-Demo
+
+## API-Demo:
 
     import pytuya
 
