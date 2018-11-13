@@ -349,6 +349,14 @@ class BulbDevice(Device):
     DPS             = 'dps'
     DPS_MODE_COLOUR = 'colour'
     DPS_MODE_WHITE  = 'white'
+    
+    DPS_2_STATE = {
+                '1':'is_on',
+                '2':'mode',
+                '3':'brightness',
+                '4':'colourtemp',
+                '5':'colour',
+                }
 
     def __init__(self, dev_id, address, local_key=None):
         dev_type = 'device'
@@ -519,11 +527,10 @@ class BulbDevice(Device):
 
     def state(self):
         status = self.status()
-        state = {
-            'is_on'      : status[self.DPS][self.DPS_INDEX_ON],
-            'mode'       : status[self.DPS][self.DPS_INDEX_MODE],
-            'brightness' : status[self.DPS][self.DPS_INDEX_BRIGHTNESS],
-            'colourtemp' : status[self.DPS][self.DPS_INDEX_COLOURTEMP],
-            'colour'     : status[self.DPS][self.DPS_INDEX_COLOUR],
-            }
+        state = {}
+
+        for key in status[self.DPS].keys():
+            if(int(key)<=5):
+                state[self.DPS_2_STATE[key]]=status[self.DPS][key]
+
         return state
