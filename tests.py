@@ -41,14 +41,14 @@ def check_data_frame(data, expected_prefix, encrypted=True):
         version = data[16:19]
         checksum = data[19:35]
         encrypted_json = data[35:-8]
-        json_data = pytuya.AESCipher(LOCAL_KEY.encode(mock_byte_encoding)).decrypt(encrypted_json)
+        json_data = pytuya.utils.AESCipher(LOCAL_KEY.encode(mock_byte_encoding)).decrypt(encrypted_json)
     else:
         json_data = data[16:-8].decode(mock_byte_encoding)
 
     frame_ok = True
-    if prefix != pytuya.hex2bin(expected_prefix):
+    if prefix != pytuya.utils.hex2bin(expected_prefix):
         frame_ok = False
-    elif suffix != pytuya.hex2bin("000000000000aa55"):
+    elif suffix != pytuya.utils.hex2bin("000000000000aa55"):
         frame_ok = False
     elif encrypted:
         if payload_len != len(version) + len(checksum) + len(encrypted_json) + len(suffix):

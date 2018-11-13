@@ -257,7 +257,7 @@ class BulbDevice(Device):
             if not 0 <= value <= 255:
                 raise ValueError("The %s for red needs to be between 0 and 255." % name)
 
-        return self._send(self.DPS_INDEX_MODE, colour=Colour.rgb_to_hex_value(r, g, b))
+        return self._send(self.DPS_MODE_COLOUR, colour=Colour.rgb_to_hex_value(r, g, b))
 
     def set_white(self, brightness, colour_temp):
         """ Set white coloured theme of an rgb bulb.
@@ -278,9 +278,7 @@ class BulbDevice(Device):
         if not 25 <= brightness <= 255:
             raise ValueError("The brightness needs to be between 25 and 255.")
 
-        payload = self.generate_payload(SET, {self.DPS_INDEX_BRIGHTNESS: brightness})
-        data = self._send_receive(payload)
-        return data
+        return self._send(brightness=brightness)
 
     def set_colour_temp(self, colour_temp):
         """ Set the colour temperature of an rgb bulb.
