@@ -14,6 +14,7 @@ import struct
 
 # Enable info logging to see version information
 log = logging.getLogger('pytuya')
+logging.basicConfig()  # TODO include function name/line numbers in log
 log.setLevel(level=logging.INFO)
 #log.setLevel(level=logging.DEBUG)  # Debug hack!
 
