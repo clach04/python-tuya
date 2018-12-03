@@ -35,6 +35,7 @@ log = logging.getLogger(__name__)
 #logging.basicConfig()  # TODO include function name/line numbers in log
 #log.setLevel(level=logging.DEBUG)  # Debug hack!
 
+log.info('%s version %s', __name__, version)
 log.info('Python %s on %s', sys.version, sys.platform)
 if Crypto is None:
     log.info('Using pyaes version %r', pyaes.VERSION)
