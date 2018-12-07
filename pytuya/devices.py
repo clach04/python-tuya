@@ -58,7 +58,8 @@ class XenonDevice(object):
         self.address = address
         self.local_key = local_key.encode('latin1')
         self.dev_type = dev_type
-        self.connection_timeout = connection_timeout
+        self.send_receive_max_tries = 3
+        self.socket_timeout = connection_timeout / self.send_receive_max_tries
         self.cipher = None
         self.port = 6668  # default - do not expect caller to pass in
 
@@ -72,22 +73,24 @@ class XenonDevice(object):
             payload(bytes): Data to send.
         """
 
-        success, e, data = False, "", ""
-        for tries in range(3):
+        success, data = False, ""
+        for tries in range(1, self.send_receive_max_tries+1):
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-                    s.settimeout(self.connection_timeout)
+                    s.settimeout(self.socket_timeout)
                     s.connect((self.address, self.port))
                     s.send(payload)
                     data = s.recv(1024)
                 success = True
                 break
             except ConnectionResetError as e:
-                pass
+                logging.warning("Connection attempt %i/%i: %s" % (tries, self.send_receive_max_tries, e))
+            except socket.timeout as e:
+                logging.warning("Connection attempt %i/%i: %s" % (tries, self.send_receive_max_tries, e))
 
         if not success:
-            logging.warning("failed to communicate %s" % e)
+            raise RuntimeError("Unable to communicate with device")
         else:
             return data
 
