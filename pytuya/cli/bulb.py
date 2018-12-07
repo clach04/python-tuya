@@ -1,4 +1,4 @@
-import yaml
+import json
 import click
 from pytuya.cli import cli_root, get_device_from_config, config
 from pytuya.devices import BulbDevice
@@ -54,18 +54,20 @@ def colour(name, r, g, b):
     dev.set_colour(r, g, b)
 
 
+def get_json_state(dev_props):
+    return BulbDevice(dev_props["id"], dev_props["ip"], dev_props["key"]).status()
+
+
 @bulb.command()
 @click.argument('name', default=None)
 def state(name):
-    """ sends turn off action to device"""
+    """ prints the current state of device specified via NAME """
     dev_props = get_device_from_config(config, name)
-    dev = BulbDevice(dev_props["id"], dev_props["ip"], dev_props["key"])
-    dev.state()
-    print(yaml.dump({name: dev.state()}, default_flow_style=False))
+    print(json.dumps(get_json_state(dev_props)))
 
 
 if __name__ == "__main__":
     import sys
-    sys.argv = list(sys.argv) + ["bulb", "state", "study"]
-    from pytuya import cli_root
+    sys.argv = list(sys.argv) + ["bulb", "state", "garden lights"]
+    from pytuya.cli import cli_root
     cli_root()

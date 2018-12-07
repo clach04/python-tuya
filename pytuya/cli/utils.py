@@ -34,7 +34,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         cli_root()
 
-    test_extract = list(sys.argv) + ["utils", "extract_keys", "../../example_response.txt"]
+    test_extract = list(sys.argv) + ["utils", "extract_keys", "../../example_response.json"]
     test_query = list(sys.argv) + ["utils", "discover"]
 
     for test in (test_extract, test_query):

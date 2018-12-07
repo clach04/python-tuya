@@ -1,6 +1,6 @@
 import logging
 import click
-import yaml
+import json
 from pytuya.devices import CoverDevice
 from pytuya.cli.main import cli_root, config, get_device_from_config
 
@@ -30,19 +30,22 @@ for action in "open", "close", "stop":
     add_cover_command(action)
 
 
+def get_json_state(dev_props):
+    return CoverDevice(dev_props["id"], dev_props["ip"], dev_props["key"]).status()
+
+
 @cover.command()
 @click.argument('name', default=None)
 def state(name):
     """ sends turn off action to device specified via NAME """
     dev_props = get_device_from_config(config, name)
-    dev = CoverDevice(dev_props["id"], dev_props["ip"], dev_props["key"])
-    print(yaml.dump({name: dev.state()}, default_flow_style=False))
+    print(json.dumps(get_json_state(dev_props)))
 
 
 if __name__ == "__main__":
     import sys
 
-    name = "study blinds"
+    name = "study_blinds"
     sys.argv = list(sys.argv) + ["cover", "state", name.lower()]
 
     print("\nexecuting test: " + " ".join(sys.argv[1:]))

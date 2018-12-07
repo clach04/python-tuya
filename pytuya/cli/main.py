@@ -79,7 +79,8 @@ def build_config(api_response_path):
 def get_device_from_config(config, name):
     dev_props = config.get(name)
     if dev_props is None:
-        dev_props = {k.lower().replace(" ", ""): v for k, v in config.items()}.get(name.lower().replace(" ", ""))
+        name_map = lambda name: name.lower().replace(" ", "").replace("_", "")
+        dev_props = {name_map(k): v for k, v in config.items()}.get(name_map(name))
     if dev_props is None:
         raise RuntimeError("Device %s not found in config:\n%s" % (name, config))
     return dev_props
@@ -113,9 +114,9 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         cli_root()
 
-    test_extract = list(sys.argv) + ["extract", "../../example_response.txt"]
+    test_extract = list(sys.argv) + ["extract", "../../example_response.json"]
     test_query = list(sys.argv) + ["query"]
-    test_update_config = list(sys.argv) + ["update_config", "../../example_response.txt"]
+    test_update_config = list(sys.argv) + ["update_config", "../../example_response.json"]
 
     test = test_update_config
     print("\nexecuting test: pytuya %s\n" % test)
