@@ -167,6 +167,7 @@ class Device(XenonDevice):
             result = json.loads(result)
         else:
             log.error('Unexpected status() payload=%r', result)
+            result = dict(error=result)
 
         return result
 
