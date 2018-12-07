@@ -72,19 +72,19 @@ class XenonDevice(object):
             payload(bytes): Data to send.
         """
 
-        success, tries = False, 0
-        while not success and tries < 3:
+        success, e, data = False, "", ""
+        for tries in range(3):
             try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-                s.settimeout(self.connection_timeout)
-                s.connect((self.address, self.port))
-                s.send(payload)
-                data = s.recv(1024)
-                s.close()
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                    s.settimeout(self.connection_timeout)
+                    s.connect((self.address, self.port))
+                    s.send(payload)
+                    data = s.recv(1024)
                 success = True
+                break
             except ConnectionResetError as e:
-                tries += 1
+                pass
 
         if not success:
             logging.warning("failed to communicate %s" % e)
