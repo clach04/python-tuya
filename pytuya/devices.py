@@ -13,6 +13,7 @@ import json
 import logging
 import socket
 import time
+import binascii
 from pytuya.utils import hex2bin, bin2hex, AESCipher, Colour
 
 log = logging.getLogger(__name__)
@@ -131,11 +132,12 @@ class XenonDevice(object):
             json_payload = PROTOCOL_VERSION_BYTES + m.hexdigest()[8:][:16].encode('latin1') + json_payload
             self.cipher = None  # expect to connect and then disconnect to set new
 
-        postfix_payload = hex2bin(bin2hex(json_payload) + payload_dict[self.dev_type]['suffix'])
-
-        assert len(postfix_payload) <= 0xff
-        postfix_payload_hex_len = '%x' % len(postfix_payload)  # TODO this assumes a single byte 0-255 (0x00-0xff)
-
+        suffix = payload_dict[self.dev_type]['suffix']
+        payload = bin2hex(json_payload)
+        crc32 = "%.8x" % binascii.crc32(bytearray(payload.encode()))
+        suffix = crc32 + suffix[-8:]
+        postfix_payload = hex2bin(payload + suffix)
+        postfix_payload_hex_len = '%x' % len(postfix_payload)
         return hex2bin(payload_dict[self.dev_type]['prefix'] + payload_dict[self.dev_type][command]['hexByte'] +
                        '000000' + postfix_payload_hex_len) + postfix_payload
 
