@@ -17,11 +17,9 @@ import binascii
 from pytuya.utils import hex2bin, bin2hex, AESCipher, Colour
 
 log = logging.getLogger(__name__)
-logging.basicConfig()  # TODO include function name/line numbers in log
 
 SET = 'set'
 PROTOCOL_VERSION_BYTES = b'3.1'
-
 
 # This is intended to match requests.json payload at https://github.com/codetheweb/tuyapi
 payload_dict = {
@@ -75,7 +73,7 @@ class XenonDevice(object):
         """
 
         success, data = False, ""
-        for tries in range(1, self.send_receive_max_tries+1):
+        for tries in range(1, self.send_receive_max_tries + 1):
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -235,9 +233,11 @@ class BulbDevice(Device):
     DPS_INDEX_BRIGHTNESS = '3'
     DPS_INDEX_COLOUR_TEMP = '4'
     DPS_INDEX_COLOUR = '5'
+    DPS_INDEX_COLOUR_SCENE = '6'
 
     DPS = 'dps'
     DPS_MODE_COLOUR = 'colour'
+    DPS_MODE_COLOUR_SCENE = 'scene'
     DPS_MODE_WHITE = 'white'
 
     def __init__(self, dev_id, address, local_key=None):
@@ -297,29 +297,30 @@ class BulbDevice(Device):
 
     def brightness(self):
         """ Return brightness value """
-        return self.status()[self.DPS][self.DPS_INDEX_BRIGHTNESS]
+        return self.status().get(self.DPS, {}).get(self.DPS_INDEX_BRIGHTNESS, 0)
 
     def colour_temp(self):
         """ Return colour temperature """
-        return self.status()[self.DPS][self.DPS_INDEX_COLOUR_TEMP]
+        return self.status().get(self.DPS, {}).get(self.DPS_INDEX_COLOUR_TEMP, 0)
 
     def colour_rgb(self):
         """ Return colour as RGB value """
-        hex_value = self.status()[self.DPS][self.DPS_INDEX_COLOUR]
+        hex_value = self.status().get(self.DPS, {}).get(self.DPS_INDEX_COLOUR, "0"*6)
         return Colour.hex_value_to_rgb(hex_value)
 
     def colour_hsv(self):
         """ Return colour as HSV value """
-        hex_value = self.status()[self.DPS][self.DPS_INDEX_COLOUR]
+        hex_value = self.status().get(self.DPS, {}).get(self.DPS_INDEX_COLOUR, "0"*14)
         return Colour.hex_value_to_hsv(hex_value)
 
     def state(self):
-        dps = self.status()[self.DPS]
-        return dict(is_on=dps[self.DPS_INDEX_ON],
-                    mode=dps[self.DPS_INDEX_MODE],
-                    brightness=dps[self.DPS_INDEX_BRIGHTNESS],
-                    colourtemp=dps[self.DPS_INDEX_COLOUR_TEMP],
-                    colour=dps[self.DPS_INDEX_COLOUR])
+        dps = self.status().get(self.DPS, {})
+        return {k: v for k, v in
+                dict(is_on=dps.get(self.DPS_INDEX_ON),
+                     mode=dps.get(self.DPS_INDEX_MODE),
+                     brightness=dps.get(self.DPS_INDEX_BRIGHTNESS),
+                     colourtemp=dps.get(self.DPS_INDEX_COLOUR_TEMP),
+                     colour=dps.get(self.DPS_INDEX_COLOUR)).items() if v is not None}
 
 
 class CoverDevice(Device):
