@@ -235,33 +235,3 @@ class KeyExtractor:
             logging.info("getting device keys using json method failed: \n\t%s\ntrying hacky method instead.." % e)
             keys = KeyExtractor.get_device_keys_hacky(api_response)
         return keys
-
-
-if __name__ == "__main__":
-    import pytuya
-    _dev = pytuya.CoverDevice(dev_id="55870625b4e62d4b2ff7", address="192.168.137.80",
-                        local_key="385943cd1379f098", dev_type="device")
-
-
-    def get_status_descr(status):
-        if type(status) is bytes:
-            return str(status)
-        return {'1': "opening or open", '2': "closing or closed", '3': "stopped"}.get(status.get('dps').get('1'))
-
-
-    print(get_status_descr(dev.status()))
-
-    action_open = {'2': '1'}
-    action_close = {'2': '2'}
-    action_stop = {'2': '3'}
-
-
-    def send_action(action):
-        payload = _dev.generate_payload(command=pytuya.SET, data=action)
-        _dev._send_receive(payload)
-        return
-
-
-    send_action(action_stop)
-
-    print(get_status_descr(_dev.status()))
