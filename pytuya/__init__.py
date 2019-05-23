@@ -304,7 +304,26 @@ class Device(XenonDevice):
         log.debug('set_status received data=%r', data)
 
         return data
+    
+    def set_value(self, index, value):
+        """
+        Set int value of any index.
 
+        Args:
+            index(int): index to set
+            value(int): new value for the index
+        """
+        # open device, send request, then close connection
+        if isinstance(index, int):
+            index = str(index)  # index and payload is a string
+
+        payload = self.generate_payload(SET, {
+            index: value})
+        
+        data = self._send_receive(payload)
+        
+        return data
+    
     def turn_on(self, switch=1):
         """Turn the device on"""
         self.set_status(True, switch)
