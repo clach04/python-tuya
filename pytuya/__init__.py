@@ -28,7 +28,7 @@ except ImportError:
     import pyaes  # https://github.com/ricmoo/pyaes
 
 
-version_tuple = (7, 0, 4)
+version_tuple = (7, 0, 5)
 version = version_string = __version__ = '%d.%d.%d' % version_tuple
 __author__ = 'clach04'
 
