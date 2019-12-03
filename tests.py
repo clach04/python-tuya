@@ -51,7 +51,9 @@ def check_data_frame(data, expected_prefix, encrypted=True):
     frame_ok = True
     if prefix != pytuya.hex2bin(expected_prefix):
         frame_ok = False
-    elif suffix != pytuya.hex2bin("000000000000aa55"):
+    elif suffix[-4:] != pytuya.hex2bin("0000aa55"):
+        # We only check for the trailing byte signature
+        # We could extend the test to also check the CRC if we wanted.
         frame_ok = False
     elif encrypted:
         if payload_len != len(version) + len(checksum) + len(encrypted_json) + len(suffix):

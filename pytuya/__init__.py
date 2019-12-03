@@ -51,6 +51,9 @@ STATUS = 'status'
 PROTOCOL_VERSION_BYTES_31 = b'3.1'
 PROTOCOL_VERSION_BYTES_33 = b'3.3'
 
+PROTOCOL_VERSION_3_1 = 3.1
+PROTOCOL_VERSION_3_3 = 3.3
+
 IS_PY2 = sys.version_info[0] == 2
 
 class AESCipher(object):
@@ -181,6 +184,8 @@ class XenonDevice(object):
         return data
 
     def set_version(self, version):
+        if (version != PROTOCOL_VERSION_3_1) and (version != PROTOCOL_VERSION_3_3):
+            raise ValueError("Unsupported verison")
         self.version = version
 
     def generate_payload(self, command, data=None):
@@ -214,7 +219,7 @@ class XenonDevice(object):
         json_payload = json_payload.encode('utf-8')
         log.debug('json_payload=%r', json_payload)
 
-        if self.version == 3.3:
+        if self.version == PROTOCOL_VERSION_3_3:
             self.cipher = AESCipher(self.local_key)  # expect to connect and then disconnect to set new
             json_payload = self.cipher.encrypt(json_payload, False)
             self.cipher = None
@@ -302,7 +307,7 @@ class Device(XenonDevice):
             if not isinstance(result, str):
                 result = result.decode()
             result = json.loads(result)
-        elif self.version == 3.3: 
+        elif self.version == PROTOCOL_VERSION_3_3: 
             cipher = AESCipher(self.local_key)
             result = cipher.decrypt(result, False)
             log.debug('decrypted result=%r', result)
