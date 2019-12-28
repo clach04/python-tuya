@@ -1,9 +1,10 @@
 # python-tuya
 
-[![Build Status](https://travis-ci.org/clach04/python-tuya.svg?branch=master)](https://travis-ci.org/clach04/python-tuya)
+Modified version 
+---------------
+- added support for devices that don't respond to 0a status request command
 
-NOTE I'm no longer using these devices so this is not actively maintained. https://github.com/codetheweb/tuyapi node.js based is active and being updated on a regular basis.
-
+---------------
 Python 2.7 and Python 3.6.1 interface to ESP8266MOD WiFi smart devices from Shenzhen Xenon.
 If you are using the Jinvoo Smart App, this allows local control over the LAN.
 NOTE requires the devices to have already been **activated** by Jinvoo Smart App (or similar).

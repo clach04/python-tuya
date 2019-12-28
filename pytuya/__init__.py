@@ -204,6 +204,8 @@ class XenonDevice(object):
         if 't' in json_data:
             json_data['t'] = str(int(time.time()))
 
+        if command == STATUS:
+            json_data['dps'] = {"1":None,"2":None,"3":None}
         if data is not None:
             json_data['dps'] = data
 
@@ -218,7 +220,7 @@ class XenonDevice(object):
             self.cipher = AESCipher(self.local_key)  # expect to connect and then disconnect to set new
             json_payload = self.cipher.encrypt(json_payload, False)
             self.cipher = None
-            if command != STATUS:
+            if command != STATUS or (command == STATUS and payload_dict[self.dev_type][command]['hexByte'] == '0d'):
                 # add the 3.3 header
                 json_payload = PROTOCOL_VERSION_BYTES_33 + b"\0\0\0\0\0\0\0\0\0\0\0\0" + json_payload
         elif command == SET:
@@ -304,11 +306,21 @@ class Device(XenonDevice):
             result = json.loads(result)
         elif self.version == 3.3: 
             cipher = AESCipher(self.local_key)
-            result = cipher.decrypt(result, False)
-            log.debug('decrypted result=%r', result)
-            if not isinstance(result, str):
-                result = result.decode()
-            result = json.loads(result)
+            # result = cipher.decrypt(result, False)
+            # log.debug('decrypted result=%r', result)
+            # if not isinstance(result, str):
+            #     result = result.decode()
+            # result = json.loads(result)
+            if bin2hex(data[11:12]) == '0A':
+                result = cipher.decrypt(result, False)
+                if result == 'json obj data unvalid':
+                    payload_dict[self.dev_type]['status']['hexByte'] = '0d'
+                    result = self.status()        
+                if not isinstance(result, str):
+                    result = result.decode()
+                result = json.loads(result)        
+            elif bin2hex(data[11:12]) == '08':
+                result = cipher.decrypt(result[15:], False)
         else:
             log.error('Unexpected status() payload=%r', result)
 
