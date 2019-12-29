@@ -3,6 +3,7 @@
 Modified version 
 ---------------
 - added support for devices that don't respond to 0a status request command
+- used by https://github.com/TradeFace/tuyamqtt
 
 ---------------
 Python 2.7 and Python 3.6.1 interface to ESP8266MOD WiFi smart devices from Shenzhen Xenon.
