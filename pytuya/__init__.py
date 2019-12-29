@@ -121,27 +121,30 @@ def hex2bin(x):
         return bytes.fromhex(x)
 
 # This is intended to match requests.json payload at https://github.com/codetheweb/tuyapi
-payload_dict = {
-  "device": {
-    "status": {
-      "hexByte": "0a",
-      "command": {"gwId": "", "devId": ""}
-    },
-    "online": {
-      "hexByte": "09",
-      "command": {}
-    },
-    "set": {
-      "hexByte": "07",
-      "command": {"devId": "", "uid": "", "t": ""}
-    },
-    "prefix": "000055aa00000000000000",    # Next byte is command byte ("hexByte") some zero padding, then length of remaining payload, i.e. command + suffix (unclear if multiple bytes used for length, zero padding implies could be more than one byte)
-    "suffix": "000000000000aa55"
-  }
-}
+
 
 class XenonDevice(object):
-    def __init__(self, dev_id, address, local_key=None, dev_type=None, connection_timeout=10):
+
+    payload_dict = {
+        "device": {
+            "status": {
+            "hexByte": "0a",
+            "command": {"gwId": "", "devId": ""}
+            },
+            "availability": {
+            "hexByte": "09",
+            "command": {}
+            },
+            "set": {
+            "hexByte": "07",
+            "command": {"devId": "", "uid": "", "t": ""}
+            },
+            "prefix": "000055aa00000000000000",    # Next byte is command byte ("hexByte") some zero padding, then length of remaining payload, i.e. command + suffix (unclear if multiple bytes used for length, zero padding implies could be more than one byte)
+            "suffix": "000000000000aa55"
+        }
+    }
+
+    def __init__(self, dev_id, address, local_key=None, dev_type=None, connection_timeout=5):
         """
         Represents a Tuya device.
         
@@ -165,17 +168,27 @@ class XenonDevice(object):
         self.version = 3.1
 
         self.port = 6668  # default - do not expect caller to pass in
+        self.connect()
+
+    def __del__(self):
+
+        self.disconnect()
+
+    def connect(self):
 
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.s.settimeout(self.connection_timeout)
         self.s.connect((self.address, self.port))
 
-    def __del__(self):
+    def disconnect(self):
+
         self.s.close()
+
 
     def __repr__(self):
         return '%r' % ((self.id, self.address),)  # FIXME can do better than this
+
 
     def _send_receive(self, payload):
         """
@@ -184,17 +197,26 @@ class XenonDevice(object):
         Args:
             payload(bytes): Data to send.
         """
-        # s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        # s.settimeout(self.connection_timeout)
-        # s.connect((self.address, self.port))
         self.s.send(payload)
         data = self.s.recv(1024)
-        # s.close()
         return data
+        # try:
+        #     self.s.send(payload)
+        #     data = self.s.recv(1024)
+        #     return data
+        # except Exception as ex:
+        #     print('Something wrong', ex)  
+        #     if ex == '[Errno 104] Connection reset by peer':
+        #         self.disconnect()
+        #         self.connect()
+        #         return self._send_receive(payload)      
+        #     return b''
+        
+
 
     def set_version(self, version):
         self.version = version
+
 
     def generate_payload(self, command, data=None):
         """
@@ -206,7 +228,7 @@ class XenonDevice(object):
             data(dict, optional): The data to be send.
                 This is what will be passed via the 'dps' entry
         """
-        json_data = payload_dict[self.dev_type][command]['command']
+        json_data = self.payload_dict[self.dev_type][command]['command']
 
         if 'gwId' in json_data:
             json_data['gwId'] = self.id
@@ -233,7 +255,7 @@ class XenonDevice(object):
             self.cipher = AESCipher(self.local_key)  # expect to connect and then disconnect to set new
             json_payload = self.cipher.encrypt(json_payload, False)
             self.cipher = None
-            if command != STATUS or (command == STATUS and payload_dict[self.dev_type][command]['hexByte'] == '0d'):
+            if command != STATUS or (command == STATUS and self.payload_dict[self.dev_type][command]['hexByte'] == '0d'):
                 # add the 3.3 header
                 json_payload = PROTOCOL_VERSION_BYTES_33 + b"\0\0\0\0\0\0\0\0\0\0\0\0" + json_payload
         elif command == SET:
@@ -260,15 +282,15 @@ class XenonDevice(object):
             self.cipher = None  # expect to connect and then disconnect to set new
 
 
-        postfix_payload = hex2bin(bin2hex(json_payload) + payload_dict[self.dev_type]['suffix'])
+        postfix_payload = hex2bin(bin2hex(json_payload) + self.payload_dict[self.dev_type]['suffix'])
         #print('postfix_payload %r' % postfix_payload)
         #print('postfix_payload %r' % len(postfix_payload))
         #print('postfix_payload %x' % len(postfix_payload))
         #print('postfix_payload %r' % hex(len(postfix_payload)))
         assert len(postfix_payload) <= 0xff
         postfix_payload_hex_len = '%x' % len(postfix_payload)  # TODO this assumes a single byte 0-255 (0x00-0xff)
-        buffer = hex2bin( payload_dict[self.dev_type]['prefix'] + 
-                          payload_dict[self.dev_type][command]['hexByte'] + 
+        buffer = hex2bin( self.payload_dict[self.dev_type]['prefix'] + 
+                          self.payload_dict[self.dev_type][command]['hexByte'] + 
                           '000000' +
                           postfix_payload_hex_len ) + postfix_payload
 
@@ -285,26 +307,30 @@ class XenonDevice(object):
         return buffer
     
 class Device(XenonDevice):
+
     def __init__(self, dev_id, address, local_key=None, dev_type=None):
         super(Device, self).__init__(dev_id, address, local_key, dev_type)
-    
+
+
     def status(self):
         log.debug('status() entry')
         # open device, send request, then close connection
         payload = self.generate_payload('status')
+        # print('request', bin2hex(payload, True))
+        data = self._send_receive(payload)
+        log.debug('status received data=%r', data)
+        return self.process_status(data)
+
+
+    def availability(self):
+        log.debug('availability() entry')
+        # open device, send request, then close connection
+        payload = self.generate_payload('availability')
         
         data = self._send_receive(payload)
         log.debug('status received data=%r', data)
         return self.process_status(data)
 
-    def online(self):
-        log.debug('online() entry')
-        # open device, send request, then close connection
-        payload = self.generate_payload('online')
-        
-        data = self._send_receive(payload)
-        log.debug('status received data=%r', data)
-        return self.process_status(data)
 
     def process_status(self, data):
         # print(bin2hex(data,True))
@@ -334,8 +360,9 @@ class Device(XenonDevice):
             if bin2hex(data[11:12]) == '0A':
                 result = cipher.decrypt(result, False)
                 if result == 'json obj data unvalid':
-                    payload_dict[self.dev_type]['status']['hexByte'] = '0d'
-                    result = self.status()        
+                    self.payload_dict[self.dev_type]['status']['hexByte'] = '0d'
+                    result = self.status()  
+                self.payload_dict[self.dev_type]['status']['hexByte'] = '0a'      
                 if not isinstance(result, str):
                     result = result.decode()
                 result = json.loads(result)        
@@ -343,9 +370,10 @@ class Device(XenonDevice):
                 result = cipher.decrypt(result[15:], False)
                 result = json.loads(result)
         else:
-            log.error('Unexpected status() payload=%r', result)
+            log.error('Unexpected status() payload=%r', bin2hex(data,True))
 
         return result
+
 
     def set_status(self, on, switch=1):
         """
@@ -362,11 +390,14 @@ class Device(XenonDevice):
         # print('payload %r' % payload)
 
         data = self._send_receive(payload)
-        # print('data %r' % bin2hex(data,True))
+        # print('data %r -- %s' % (bin2hex(data,True), bin2hex(data[11:12])))
         log.debug('set_status received data=%r', data)
+        ret_value = self.process_status(data)
+        if bin2hex(data[11:12]) == '07':
+            ret_value = self.status()
+        return ret_value #self.process_status(data)
 
-        return data #self.process_status(data)
-    
+
     def set_value(self, index, value):
         """
         Set int value of any index.
@@ -385,14 +416,17 @@ class Device(XenonDevice):
         data = self._send_receive(payload)
         
         return data
-    
+
+
     def turn_on(self, switch=1):
         """Turn the device on"""
         self.set_status(True, switch)
 
+
     def turn_off(self, switch=1):
         """Turn the device off"""
         self.set_status(False, switch)
+
 
     def set_timer(self, num_secs):
         """
@@ -415,6 +449,7 @@ class Device(XenonDevice):
         data = self._send_receive(payload)
         log.debug('set_timer received data=%r', data)
         return data
+
 
 class OutletDevice(Device):
     def __init__(self, dev_id, address, local_key=None):
