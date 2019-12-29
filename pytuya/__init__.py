@@ -47,6 +47,7 @@ else:
 
 SET = 'set'
 STATUS = 'status'
+ONLINE = 'online'
 
 PROTOCOL_VERSION_BYTES_31 = b'3.1'
 PROTOCOL_VERSION_BYTES_33 = b'3.3'
@@ -126,6 +127,10 @@ payload_dict = {
       "hexByte": "0a",
       "command": {"gwId": "", "devId": ""}
     },
+    "online": {
+      "hexByte": "09",
+      "command": {}
+    },
     "set": {
       "hexByte": "07",
       "command": {"devId": "", "uid": "", "t": ""}
@@ -161,6 +166,14 @@ class XenonDevice(object):
 
         self.port = 6668  # default - do not expect caller to pass in
 
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        self.s.settimeout(self.connection_timeout)
+        self.s.connect((self.address, self.port))
+
+    def __del__(self):
+        self.s.close()
+
     def __repr__(self):
         return '%r' % ((self.id, self.address),)  # FIXME can do better than this
 
@@ -171,13 +184,13 @@ class XenonDevice(object):
         Args:
             payload(bytes): Data to send.
         """
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        s.settimeout(self.connection_timeout)
-        s.connect((self.address, self.port))
-        s.send(payload)
-        data = s.recv(1024)
-        s.close()
+        # s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        # s.settimeout(self.connection_timeout)
+        # s.connect((self.address, self.port))
+        self.s.send(payload)
+        data = self.s.recv(1024)
+        # s.close()
         return data
 
     def set_version(self, version):
@@ -279,10 +292,22 @@ class Device(XenonDevice):
         log.debug('status() entry')
         # open device, send request, then close connection
         payload = self.generate_payload('status')
-
+        
         data = self._send_receive(payload)
         log.debug('status received data=%r', data)
+        return self.process_status(data)
 
+    def online(self):
+        log.debug('online() entry')
+        # open device, send request, then close connection
+        payload = self.generate_payload('online')
+        
+        data = self._send_receive(payload)
+        log.debug('status received data=%r', data)
+        return self.process_status(data)
+
+    def process_status(self, data):
+        # print(bin2hex(data,True))
         result = data[20:-8]  # hard coded offsets
         log.debug('result=%r', result)
         #result = data[data.find('{'):data.rfind('}')+1]  # naive marker search, hope neither { nor } occur in header/footer
@@ -306,11 +331,6 @@ class Device(XenonDevice):
             result = json.loads(result)
         elif self.version == 3.3: 
             cipher = AESCipher(self.local_key)
-            # result = cipher.decrypt(result, False)
-            # log.debug('decrypted result=%r', result)
-            # if not isinstance(result, str):
-            #     result = result.decode()
-            # result = json.loads(result)
             if bin2hex(data[11:12]) == '0A':
                 result = cipher.decrypt(result, False)
                 if result == 'json obj data unvalid':
@@ -321,6 +341,7 @@ class Device(XenonDevice):
                 result = json.loads(result)        
             elif bin2hex(data[11:12]) == '08':
                 result = cipher.decrypt(result[15:], False)
+                result = json.loads(result)
         else:
             log.error('Unexpected status() payload=%r', result)
 
@@ -338,12 +359,13 @@ class Device(XenonDevice):
         if isinstance(switch, int):
             switch = str(switch)  # index and payload is a string
         payload = self.generate_payload(SET, {switch:on})
-        #print('payload %r' % payload)
+        # print('payload %r' % payload)
 
         data = self._send_receive(payload)
+        # print('data %r' % bin2hex(data,True))
         log.debug('set_status received data=%r', data)
 
-        return data
+        return data #self.process_status(data)
     
     def set_value(self, index, value):
         """
