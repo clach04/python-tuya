@@ -47,7 +47,7 @@ else:
 
 SET = 'set'
 STATUS = 'status'
-ONLINE = 'online'
+AVAILABILITY = 'availability'
 
 PROTOCOL_VERSION_BYTES_31 = b'3.1'
 PROTOCOL_VERSION_BYTES_33 = b'3.3'
@@ -361,14 +361,24 @@ class Device(XenonDevice):
                 result = cipher.decrypt(result, False)
                 if result == 'json obj data unvalid':
                     self.payload_dict[self.dev_type]['status']['hexByte'] = '0d'
-                    result = self.status()  
+                    result = json.dumps(self.status())  #yeah I known, freaking nasty 
                 self.payload_dict[self.dev_type]['status']['hexByte'] = '0a'      
                 if not isinstance(result, str):
                     result = result.decode()
                 result = json.loads(result)        
             elif bin2hex(data[11:12]) == '08':
+                # for i in range(0, 20):
+                #     inp = bin2hex(result[i:],True)
+                #     try:
+                #         result = cipher.decrypt(result[i:], False)
+                #         result = json.loads(result)
+                #         print(i, result)
+                #     except:
+                #         pass
+                # i = 15
                 result = cipher.decrypt(result[15:], False)
                 result = json.loads(result)
+                # print(i, result)
         else:
             log.error('Unexpected status() payload=%r', bin2hex(data,True))
 
