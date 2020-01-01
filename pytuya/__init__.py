@@ -159,36 +159,32 @@ class XenonDevice(object):
         Attributes:
             port (int): The port to connect to.
         """
+
+        self.version = 3.1
         self.id = dev_id
         self.address = address
         self.local_key = local_key
         self.local_key = local_key.encode('latin1')
         self.dev_type = dev_type
         self.connection_timeout = connection_timeout
-        self.version = 3.1
 
         self.port = 6668  # default - do not expect caller to pass in
-        self.connect()
 
-    def __del__(self):
-
-        self.disconnect()
-
-    def connect(self):
-
-        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        self.s.settimeout(self.connection_timeout)
-        self.s.connect((self.address, self.port))
-
-    def disconnect(self):
-
-        self.s.close()
+        self.s = None # persistent socket
 
 
     def __repr__(self):
         return '%r' % ((self.id, self.address),)  # FIXME can do better than this
 
+    def __del__(self):
+
+        self.disconnect()
+
+    def disconnect(self):
+        """ close the connection """
+        if self.s != None:
+            self.s.close()
+        self.s = None
 
     def _send_receive(self, payload):
         """
@@ -197,20 +193,41 @@ class XenonDevice(object):
         Args:
             payload(bytes): Data to send.
         """
-        self.s.send(payload)
-        data = self.s.recv(1024)
-        return data
-        # try:
-        #     self.s.send(payload)
-        #     data = self.s.recv(1024)
-        #     return data
-        # except Exception as ex:
-        #     print('Something wrong', ex)  
-        #     if ex == '[Errno 104] Connection reset by peer':
-        #         self.disconnect()
-        #         self.connect()
-        #         return self._send_receive(payload)      
-        #     return b''
+               
+        if(self.s == None):
+            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            self.s.settimeout(self.connection_timeout)
+            try:
+                self.s.connect((self.address, self.port))
+            except:
+                pass
+
+        data = None      
+        cpt_connect=0   
+        while(cpt_connect<10): # guess 10 is enough
+            try:
+                self.s.send(payload)
+                data = self.s.recv(4096)
+                cpt_connect=10
+            except (ConnectionResetError, ConnectionRefusedError, BrokenPipeError) as e:
+                cpt_connect = cpt_connect+1
+                if(cpt_connect==10):
+                    raise e
+                self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                self.s.settimeout(self.connection_timeout)
+                self.s.connect((self.address, self.port))
+            except socket.timeout as e:
+                cpt_connect = cpt_connect+1
+                if(cpt_connect==2):#stop after the first retry to avoid to long blocking time 
+                    raise e
+                self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                self.s.settimeout(self.connection_timeout)
+                self.s.connect((self.address, self.port))
+            
+        return data 
         
 
 
@@ -308,18 +325,29 @@ class XenonDevice(object):
     
 class Device(XenonDevice):
 
-    def __init__(self, dev_id, address, local_key=None, dev_type=None):
+    via = ''
+
+    def __init__(self, dev_id, address, local_key=None, dev_type=None, connection_timeout=5):
         super(Device, self).__init__(dev_id, address, local_key, dev_type)
 
 
     def status(self):
+        self.via = ''
+        self.via += 'a'
         log.debug('status() entry')
         # open device, send request, then close connection
         payload = self.generate_payload('status')
         # print('request', bin2hex(payload, True))
         data = self._send_receive(payload)
         log.debug('status received data=%r', data)
-        return self.process_status(data)
+        s = self.process_status(data)
+        self.via += 'z'
+        # if bin2hex(data[11:12]) == '07':
+        #     ret_value = self.status()
+        # print(self.via)
+        # if self.via == 'aijhz':
+        #     print(bin2hex(s,True))
+        return s
 
 
     def availability(self):
@@ -334,6 +362,7 @@ class Device(XenonDevice):
 
     def process_status(self, data):
         # print(bin2hex(data,True))
+        self.via += 'i'
         result = data[20:-8]  # hard coded offsets
         log.debug('result=%r', result)
         #result = data[data.find('{'):data.rfind('}')+1]  # naive marker search, hope neither { nor } occur in header/footer
@@ -356,16 +385,21 @@ class Device(XenonDevice):
                 result = result.decode()
             result = json.loads(result)
         elif self.version == 3.3: 
+            self.via += 'j'
             cipher = AESCipher(self.local_key)
             if bin2hex(data[11:12]) == '0A':
                 result = cipher.decrypt(result, False)
+                self.via += 'b'
                 if result == 'json obj data unvalid':
+                    self.via += 'c'
                     self.payload_dict[self.dev_type]['status']['hexByte'] = '0d'
                     result = json.dumps(self.status())  #yeah I known, freaking nasty 
                 self.payload_dict[self.dev_type]['status']['hexByte'] = '0a'      
                 if not isinstance(result, str):
                     result = result.decode()
-                result = json.loads(result)        
+                    self.via += 'd'
+                result = json.loads(result)     
+                self.via += 'e'   
             elif bin2hex(data[11:12]) == '08':
                 # for i in range(0, 20):
                 #     inp = bin2hex(result[i:],True)
@@ -376,12 +410,16 @@ class Device(XenonDevice):
                 #     except:
                 #         pass
                 # i = 15
+                self.via += 'f'
                 result = cipher.decrypt(result[15:], False)
+                # if self.payload_dict[self.dev_type]['status']['hexByte'] = '0d'
                 result = json.loads(result)
                 # print(i, result)
         else:
             log.error('Unexpected status() payload=%r', bin2hex(data,True))
+            self.via += 'g'
 
+        self.via += 'h'
         return result
 
 
@@ -462,9 +500,9 @@ class Device(XenonDevice):
 
 
 class OutletDevice(Device):
-    def __init__(self, dev_id, address, local_key=None):
+    def __init__(self, dev_id, address, local_key=None, connection_timeout=5):
         dev_type = 'device'
-        super(OutletDevice, self).__init__(dev_id, address, local_key, dev_type)
+        super(OutletDevice, self).__init__(dev_id, address, local_key, dev_type, connection_timeout)
 
 class BulbDevice(Device):
     DPS_INDEX_ON         = '1'

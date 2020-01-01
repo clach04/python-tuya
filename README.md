@@ -3,6 +3,7 @@
 Modified version 
 ---------------
 - added support for devices that don't respond to 0a status request command
+- updated connection persistence
 - used by https://github.com/TradeFace/tuyamqtt
 
 ---------------
