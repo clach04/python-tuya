@@ -148,7 +148,7 @@ class Device(object):
     }
 
 
-    def __init__(self, dev_id, address, local_key=None, dev_type=None, connection_timeout=10):
+    def __init__(self, dev_id, address, local_key=None, dev_type='device', connection_timeout=10):
 
         """
         Represents a Tuya device.
