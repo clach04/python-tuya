@@ -19,6 +19,9 @@ import time
 import colorsys
 import binascii
 
+
+from bitstring import BitArray
+
 try:
     #raise ImportError
     import Crypto
@@ -123,7 +126,7 @@ def hex2bin(x):
 # This is intended to match requests.json payload at https://github.com/codetheweb/tuyapi
 
 
-class XenonDevice(object):
+class Device(object):
 
     payload_dict = {
         "device": {
@@ -144,7 +147,9 @@ class XenonDevice(object):
         }
     }
 
-    def __init__(self, dev_id, address, local_key=None, dev_type=None, connection_timeout=5):
+
+    def __init__(self, dev_id, address, local_key=None, dev_type=None, connection_timeout=10):
+
         """
         Represents a Tuya device.
         
@@ -167,6 +172,7 @@ class XenonDevice(object):
         self.local_key = local_key.encode('latin1')
         self.dev_type = dev_type
         self.connection_timeout = connection_timeout
+        self.request_cnt = 0
 
         self.port = 6668  # default - do not expect caller to pass in
 
@@ -175,18 +181,23 @@ class XenonDevice(object):
 
     def __repr__(self):
         return '%r' % ((self.id, self.address),)  # FIXME can do better than this
+    
 
     def __del__(self):
 
         self.disconnect()
+    
 
     def disconnect(self):
+
         """ close the connection """
         if self.s != None:
             self.s.close()
         self.s = None
+    
 
     def _send_receive(self, payload):
+
         """
         Send single buffer `payload` and receive a single buffer.
         
@@ -207,7 +218,8 @@ class XenonDevice(object):
         cpt_connect=0   
         while(cpt_connect<10): # guess 10 is enough
             try:
-                self.s.send(payload)
+                if payload != None:
+                    self.s.send(payload)
                 data = self.s.recv(4096)
                 cpt_connect=10
             except (ConnectionResetError, ConnectionRefusedError, BrokenPipeError) as e:
@@ -227,15 +239,15 @@ class XenonDevice(object):
                 self.s.settimeout(self.connection_timeout)
                 self.s.connect((self.address, self.port))
             
-        return data 
-        
+        return data         
 
 
     def set_version(self, version):
         self.version = version
 
 
-    def generate_payload(self, command, data=None):
+    #TODO: clean up this mess
+    def generate_payload(self, command, data=None, protocol = False, commandByte = None):
         """
         Generate the payload to send.
 
@@ -272,7 +284,7 @@ class XenonDevice(object):
             self.cipher = AESCipher(self.local_key)  # expect to connect and then disconnect to set new
             json_payload = self.cipher.encrypt(json_payload, False)
             self.cipher = None
-            if command != STATUS or (command == STATUS and self.payload_dict[self.dev_type][command]['hexByte'] == '0d'):
+            if command != STATUS or protocol or (command == STATUS and self.payload_dict[self.dev_type][command]['hexByte'] == '0d'):
                 # add the 3.3 header
                 json_payload = PROTOCOL_VERSION_BYTES_33 + b"\0\0\0\0\0\0\0\0\0\0\0\0" + json_payload
         elif command == SET:
@@ -306,8 +318,20 @@ class XenonDevice(object):
         #print('postfix_payload %r' % hex(len(postfix_payload)))
         assert len(postfix_payload) <= 0xff
         postfix_payload_hex_len = '%x' % len(postfix_payload)  # TODO this assumes a single byte 0-255 (0x00-0xff)
-        buffer = hex2bin( self.payload_dict[self.dev_type]['prefix'] + 
-                          self.payload_dict[self.dev_type][command]['hexByte'] + 
+
+        hexByte = self.payload_dict[self.dev_type][command]['hexByte']
+        if commandByte != None:
+            hexByte = commandByte
+        
+        prefix = self.payload_dict[self.dev_type]['prefix'] 
+        # if insertCount:
+        self.request_cnt += 1
+        if self.request_cnt > 255:
+            self.request_cnt = 1
+        prefix = prefix[:8] + bin2hex(self.request_cnt.to_bytes(2, byteorder='big')) + prefix[12:]       
+
+        buffer = hex2bin( prefix + 
+                          hexByte + 
                           '000000' +
                           postfix_payload_hex_len ) + postfix_payload
 
@@ -322,105 +346,116 @@ class XenonDevice(object):
         #print(bin2hex(buffer, pretty=False))
         #print('full buffer(%d) %r' % (len(buffer), " ".join("{:02x}".format(ord(c)) for c in buffer)))
         return buffer
-    
-class Device(XenonDevice):
 
-    via = ''
 
-    def __init__(self, dev_id, address, local_key=None, dev_type=None, connection_timeout=5):
-        super(Device, self).__init__(dev_id, address, local_key, dev_type)
+    def _process_contole_result(self, data): #07 / 7
+
+        # print('_process_contole_result, request success', data)
+        pass
+
+
+    def _process_status_result(self, data): #08 / 8
+
+        cipher = AESCipher(self.local_key)
+        result = cipher.decrypt(data[15:], False)
+        # print('_process_status_result', result)
+        return result
+
+
+    def _process_heartbeat_result(self, data): #09 / 9
+
+        # print('_process_heartbeat_result', data)
+        self.heartbeat_received = True
+
+
+    def _process_query_result(self, data): #0a / 10
+
+        cipher = AESCipher(self.local_key)
+        result = cipher.decrypt(data, False)
+        # print('_process_query_result', result)
+        return result
+
+
+    def _process_contole_new_result(self, data): #0d / 13
+
+        # print('_process_contole_new_result, request success', data)        
+        pass
+
+
+    def _process_query_new_result(self, data): #10 / 16
+
+        cipher = AESCipher(self.local_key)
+        result = cipher.decrypt(data, False)
+        # print('_process_query_new_result', result)
+        return result
+
+
+    def _process_tuya(self, reply):
+        
+        a = BitArray(reply)
+     
+        for s in a.split('0x55aa', bytealigned=True):
+            sbytes = s.tobytes()          
+            if sbytes[:2] == b'\x55\xaa':              
+                count = int.from_bytes(sbytes[3:4], byteorder='little')
+                if self.request_cnt == count:
+                    self.received_footer = True
+
+                cmd = int.from_bytes(sbytes[9:10], byteorder='little')                
+                lendata = int.from_bytes(sbytes[13:14], byteorder='little')                 
+                dataend = 14+(lendata-8)
+                data = sbytes[18:dataend]  
+                if cmd == 7:
+                    self._process_contole_result(data)
+                elif cmd == 8:
+                    self.results.append(self._process_status_result(data))  
+                elif cmd == 9:
+                    self._process_heartbeat_result(data)          
+                elif cmd == 10:
+                    self.results.append(self._process_query_result(data))
+                elif cmd == 13:
+                    self._process_contole_new_result(data)
+                elif cmd == 16:
+                    self._process_query_new_result(data)
+
+
+    def initial_request(self):
+
+        payload = self.generate_payload(SET,None,False, '10')
+        self.received_footer = False
+        data = self._send_receive(payload)
 
 
     def status(self):
-        self.via = ''
-        self.via += 'a'
-        log.debug('status() entry')
-        # open device, send request, then close connection
+
         payload = self.generate_payload('status')
-        # print('request', bin2hex(payload, True))
-        data = self._send_receive(payload)
-        log.debug('status received data=%r', data)
-        s = self.process_status(data)
-        self.via += 'z'
-        # if bin2hex(data[11:12]) == '07':
-        #     ret_value = self.status()
-        # print(self.via)
-        # if self.via == 'aijhz':
-        #     print(bin2hex(s,True))
-        return s
-
-
-    def availability(self):
-        log.debug('availability() entry')
-        # open device, send request, then close connection
-        payload = self.generate_payload('availability')
+        self.received_footer = False
         
-        data = self._send_receive(payload)
-        log.debug('status received data=%r', data)
-        return self.process_status(data)
+        self.results = []
+        while self.received_footer == False:
+            data = self._send_receive(payload)            
+            self._process_tuya(data)
+            payload = None
 
-
-    def process_status(self, data):
-        # print(bin2hex(data,True))
-        self.via += 'i'
-        result = data[20:-8]  # hard coded offsets
-        log.debug('result=%r', result)
-        #result = data[data.find('{'):data.rfind('}')+1]  # naive marker search, hope neither { nor } occur in header/footer
-        #print('result %r' % result)
-        if result.startswith(b'{'):
-            # this is the regular expected code path
-            if not isinstance(result, str):
-                result = result.decode()
-            result = json.loads(result)
-        elif result.startswith(PROTOCOL_VERSION_BYTES_31):
-            # got an encrypted payload, happens occasionally
-            # expect resulting json to look similar to:: {"devId":"ID","dps":{"1":true,"2":0},"t":EPOCH_SECS,"s":3_DIGIT_NUM}
-            # NOTE dps.2 may or may not be present
-            result = result[len(PROTOCOL_VERSION_BYTES_31):]  # remove version header
-            result = result[16:]  # remove (what I'm guessing, but not confirmed is) 16-bytes of MD5 hexdigest of payload
-            cipher = AESCipher(self.local_key)
-            result = cipher.decrypt(result)
-            log.debug('decrypted result=%r', result)
-            if not isinstance(result, str):
-                result = result.decode()
-            result = json.loads(result)
-        elif self.version == 3.3: 
-            self.via += 'j'
-            cipher = AESCipher(self.local_key)
-            if bin2hex(data[11:12]) == '0A':
-                result = cipher.decrypt(result, False)
-                self.via += 'b'
-                if result == 'json obj data unvalid':
-                    self.via += 'c'
+        ret_value = False
+        for ritem in self.results:
+            if type(ritem) == str:
+                if ritem == 'json obj data unvalid':
                     self.payload_dict[self.dev_type]['status']['hexByte'] = '0d'
-                    result = json.dumps(self.status())  #yeah I known, freaking nasty 
-                self.payload_dict[self.dev_type]['status']['hexByte'] = '0a'      
-                if not isinstance(result, str):
-                    result = result.decode()
-                    self.via += 'd'
-                result = json.loads(result)     
-                self.via += 'e'   
-            elif bin2hex(data[11:12]) == '08':
-                # for i in range(0, 20):
-                #     inp = bin2hex(result[i:],True)
-                #     try:
-                #         result = cipher.decrypt(result[i:], False)
-                #         result = json.loads(result)
-                #         print(i, result)
-                #     except:
-                #         pass
-                # i = 15
-                self.via += 'f'
-                result = cipher.decrypt(result[15:], False)
-                # if self.payload_dict[self.dev_type]['status']['hexByte'] = '0d'
-                result = json.loads(result)
-                # print(i, result)
-        else:
-            log.error('Unexpected status() payload=%r', bin2hex(data,True))
-            self.via += 'g'
+                    ritem = json.dumps(self.status())  #yeah I known, freaking nasty    
+                ret_value = json.loads(ritem)
+    
+        return ret_value
 
-        self.via += 'h'
-        return result
+
+    # def availability(self):
+       
+    #     payload = self.generate_payload('availability')
+    #     self.heartbeat_received = False
+    #     data = self._send_receive(payload)
+    #     result = self._process_tuya(data)
+    #     # print('_process_tuya availability' ,self.address ,result)
+    #     return self.heartbeat_received
 
 
     def set_status(self, on, switch=1):
@@ -435,16 +470,68 @@ class Device(XenonDevice):
         if isinstance(switch, int):
             switch = str(switch)  # index and payload is a string
         payload = self.generate_payload(SET, {switch:on})
-        # print('payload %r' % payload)
+        self.received_footer = False
+        # print('set request', bin2hex(payload, True))
+        self.results = []
+        while self.received_footer == False:
+            data = self._send_receive(payload)            
+            self._process_tuya(data)
+            payload = None
+            # print('set reply', bin2hex(data, True), self.received_footer)
+        return self.received_footer
+       
 
-        data = self._send_receive(payload)
-        # print('data %r -- %s' % (bin2hex(data,True), bin2hex(data[11:12])))
-        log.debug('set_status received data=%r', data)
-        ret_value = self.process_status(data)
-        if bin2hex(data[11:12]) == '07':
-            ret_value = self.status()
-        return ret_value #self.process_status(data)
+    # def process_status(self, data):
+    #     # print(bin2hex(data,True))
+    #     self.via += 'i'
+    #     result = data[20:-8]  # hard coded offsets
+    #     # print(bin2hex(result,True))
+    #     log.debug('result=%r', result)
+    #     #result = data[data.find('{'):data.rfind('}')+1]  # naive marker search, hope neither { nor } occur in header/footer
+    #     #print('result %r' % result)
+    #     if result.startswith(b'{'):
+    #         # this is the regular expected code path
+    #         if not isinstance(result, str):
+    #             result = result.decode()
+    #         result = json.loads(result)
+    #     elif result.startswith(PROTOCOL_VERSION_BYTES_31):
+    #         # got an encrypted payload, happens occasionally
+    #         # expect resulting json to look similar to:: {"devId":"ID","dps":{"1":true,"2":0},"t":EPOCH_SECS,"s":3_DIGIT_NUM}
+    #         # NOTE dps.2 may or may not be present
+    #         result = result[len(PROTOCOL_VERSION_BYTES_31):]  # remove version header
+    #         result = result[16:]  # remove (what I'm guessing, but not confirmed is) 16-bytes of MD5 hexdigest of payload
+    #         cipher = AESCipher(self.local_key)
+    #         result = cipher.decrypt(result)
+    #         log.debug('decrypted result=%r', result)
+    #         if not isinstance(result, str):
+    #             result = result.decode()
+    #         result = json.loads(result)
+    #     elif self.version == 3.3: 
 
+    #         cipher = AESCipher(self.local_key)
+    #         if bin2hex(data[11:12]) == '0A':
+    #             result = cipher.decrypt(result, False)
+
+    #             if result == 'json obj data unvalid':
+
+    #                 self.payload_dict[self.dev_type]['status']['hexByte'] = '0d'
+    #                 result = json.dumps(self.status())  #yeah I known, freaking nasty 
+    #             self.payload_dict[self.dev_type]['status']['hexByte'] = '0a'      
+    #             if not isinstance(result, str):
+    #                 result = result.decode()
+
+    #             result = json.loads(result)     
+ 
+    #         elif bin2hex(data[11:12]) == '08':
+
+    #             result = cipher.decrypt(result[15:], False)
+    #             # if self.payload_dict[self.dev_type]['status']['hexByte'] = '0d'
+    #             result = json.loads(result)
+    #             # print(i, result)
+    #     else:
+    #         log.error('Unexpected status() payload=%r', bin2hex(data,True))
+
+    #     return result
 
     def set_value(self, index, value):
         """
@@ -498,11 +585,6 @@ class Device(XenonDevice):
         log.debug('set_timer received data=%r', data)
         return data
 
-
-class OutletDevice(Device):
-    def __init__(self, dev_id, address, local_key=None, connection_timeout=5):
-        dev_type = 'device'
-        super(OutletDevice, self).__init__(dev_id, address, local_key, dev_type, connection_timeout)
 
 class BulbDevice(Device):
     DPS_INDEX_ON         = '1'
