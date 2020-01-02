@@ -8,6 +8,8 @@
 #
 # Tested with Python 2.7 and Python 3.6.1 only
 
+# end
+
 
 import base64
 from hashlib import md5
@@ -171,7 +173,8 @@ class Device(object):
         self.local_key = local_key
         self.local_key = local_key.encode('latin1')
         self.dev_type = dev_type
-        self.connection_timeout = connection_timeout
+        self.connection_timeout = 1 
+        #connection_timeout
         self.request_cnt = 0
 
         self.port = 6668  # default - do not expect caller to pass in
@@ -195,6 +198,14 @@ class Device(object):
             self.s.close()
         self.s = None
     
+    def connect(self):
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        self.s.settimeout(self.connection_timeout)
+        try:
+            self.s.connect((self.address, self.port))
+        except:
+            pass
 
     def _send_receive(self, payload):
 
@@ -206,13 +217,7 @@ class Device(object):
         """
                
         if(self.s == None):
-            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            self.s.settimeout(self.connection_timeout)
-            try:
-                self.s.connect((self.address, self.port))
-            except:
-                pass
+            self.connect()
 
         data = None      
         cpt_connect=0   
@@ -226,18 +231,12 @@ class Device(object):
                 cpt_connect = cpt_connect+1
                 if(cpt_connect==10):
                     raise e
-                self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-                self.s.settimeout(self.connection_timeout)
-                self.s.connect((self.address, self.port))
+                self.connect()
             except socket.timeout as e:
                 cpt_connect = cpt_connect+1
                 if(cpt_connect==2):#stop after the first retry to avoid to long blocking time 
                     raise e
-                self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-                self.s.settimeout(self.connection_timeout)
-                self.s.connect((self.address, self.port))
+                self.connect()
             
         return data         
 
@@ -430,12 +429,13 @@ class Device(object):
 
         payload = self.generate_payload('status')
         self.received_footer = False
-        
+        # print('request', bin2hex(payload, True))
         self.results = []
         while self.received_footer == False:
             data = self._send_receive(payload)            
             self._process_tuya(data)
             payload = None
+            # print('reply', bin2hex(data, True), self.received_footer)
 
         ret_value = False
         for ritem in self.results:
