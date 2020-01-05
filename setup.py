@@ -6,7 +6,7 @@ try:
 except ImportError:
     from distutils.core import setup
 
-import pytuya
+from pytuya.const import __author__, __version__
 
 
 if len(sys.argv) <= 1:
@@ -35,8 +35,8 @@ else:
 
 setup(
     name='pytuya',
-    author=pytuya.__author__,
-    version=pytuya.__version__,
+    author=__author__,
+    version=__version__,
     description='Python interface to ESP8266MOD WiFi smart devices from Shenzhen Xenon',
     long_description=long_description,
     long_description_content_type='text/markdown',
