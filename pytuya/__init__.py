@@ -18,6 +18,7 @@ import sys
 import time
 import colorsys
 import binascii
+from typing import Union
 
 try:
     #raise ImportError
@@ -267,9 +268,10 @@ class XenonDevice(object):
         #print('full buffer(%d) %r' % (len(buffer), " ".join("{:02x}".format(ord(c)) for c in buffer)))
         return buffer
 
-class Device(XenonDevice):
-    def __init__(self, dev_id, address, local_key=None, dev_type=None):
-        super(Device, self).__init__(dev_id, address, local_key, dev_type)
+
+class TuyaDevice(XenonDevice):
+    def __init__(self, dev_id, address, local_key=None, dev_type="device"):
+        super(TuyaDevice, self).__init__(dev_id, address, local_key, dev_type)
 
     def status(self):
         log.debug('status() entry')
@@ -281,8 +283,7 @@ class Device(XenonDevice):
 
         result = data[20:-8]  # hard coded offsets
         log.debug('result=%r', result)
-        #result = data[data.find('{'):data.rfind('}')+1]  # naive marker search, hope neither { nor } occur in header/footer
-        #print('result %r' % result)
+
         if result.startswith(b'{'):
             # this is the regular expected code path
             if not isinstance(result, str):
@@ -293,7 +294,8 @@ class Device(XenonDevice):
             # expect resulting json to look similar to:: {"devId":"ID","dps":{"1":true,"2":0},"t":EPOCH_SECS,"s":3_DIGIT_NUM}
             # NOTE dps.2 may or may not be present
             result = result[len(PROTOCOL_VERSION_BYTES_31):]  # remove version header
-            result = result[16:]  # remove (what I'm guessing, but not confirmed is) 16-bytes of MD5 hexdigest of payload
+            result = result[
+                     16:]  # remove (what I'm guessing, but not confirmed is) 16-bytes of MD5 hexdigest of payload
             cipher = AESCipher(self.local_key)
             result = cipher.decrypt(result)
             log.debug('decrypted result=%r', result)
@@ -312,6 +314,26 @@ class Device(XenonDevice):
 
         return result
 
+    def set_value(self, index: Union[str, int], value: Union[bool, int, float, str]):
+        """
+        Set int value of any index.
+
+        Args:
+            index: index to set
+            value: new value for the index
+        """
+        # open device, send request, then close connection
+        if isinstance(index, int):
+            index = str(index)  # index and payload is a string
+
+        payload = self.generate_payload(SET, {index: value})
+        return self._send_receive(payload)
+
+
+class Device(TuyaDevice):
+    def __init__(self, dev_id, address, local_key=None, dev_type=None):
+        super(Device, self).__init__(dev_id, address, local_key, dev_type)
+
     def set_status(self, on, switch=1):
         """
         Set status of the device to 'on' or 'off'.
@@ -328,25 +350,6 @@ class Device(XenonDevice):
 
         data = self._send_receive(payload)
         log.debug('set_status received data=%r', data)
-
-        return data
-
-    def set_value(self, index, value):
-        """
-        Set int value of any index.
-
-        Args:
-            index(int): index to set
-            value(int): new value for the index
-        """
-        # open device, send request, then close connection
-        if isinstance(index, int):
-            index = str(index)  # index and payload is a string
-
-        payload = self.generate_payload(SET, {
-            index: value})
-
-        data = self._send_receive(payload)
 
         return data
 
