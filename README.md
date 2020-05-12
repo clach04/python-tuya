@@ -56,6 +56,13 @@ These devices uses AES encryption, this is not available in Python standard libr
   * https://github.com/Marcus-L/m4rcus.TuyaCore - .NET
   * https://github.com/SDNick484/rectec_status/ - RecTec pellet smokers control (with Alexa skill)
 
+### Publishing cheat sheet
+
+    pip install twine pycrypto
+    python setup.py sdist --formats=zip
+    twine upload dist/*
+    # version bump ready for next release
+
 ### Acknowledgements
 
   * Major breakthroughs on protocol work came from https://github.com/codetheweb/tuyapi from the reverse engineering time and skills of codetheweb and blackrozes, additional protocol reverse engineering from jepsonrob and clach04.
