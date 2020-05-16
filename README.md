@@ -4,6 +4,13 @@
 
 NOTE I'm no longer using these devices so this is not actively maintained. https://github.com/codetheweb/tuyapi node.js based is active and being updated on a regular basis.
 
+An alternative is to reflash the devices (e.g with Tasmota) using https://github.com/ct-Open-Source/tuya-convert/ or if OTA is not an option over serial, see https://github.com/arendst/Tasmota Recommended reading:
+
+  * https://lobradov.github.io/FOSS-Firmware-comparison-overview/
+      * https://lobradov.github.io/FOSS-Firmware-comparison-developers/
+
+---------------------------------------------------------
+
 Python 2.7 and Python 3.6.1 interface to ESP8266MOD WiFi smart devices from Shenzhen Xenon.
 If you are using the Jinvoo Smart App, this allows local control over the LAN.
 NOTE requires the devices to have already been **activated** by Jinvoo Smart App (or similar).
