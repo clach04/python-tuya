@@ -325,9 +325,15 @@ class Device(XenonDevice):
             switch = str(switch)  # index and payload is a string
         payload = self.generate_payload(SET, {switch:on})
         #print('payload %r' % payload)
-
-        data = self._send_receive(payload)
-        log.debug('set_status received data=%r', data)
+        for i in range(3):
+            try:
+                data = self._send_receive(payload)
+                log.debug('set_status received data=%r', data)
+            except Exception:
+                if i == 2:
+                    raise Exception('set_status failed after 3 consecutive attempts')
+                else:
+                    continue
 
         return data
 
