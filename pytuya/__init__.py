@@ -134,7 +134,7 @@ payload_dict = {
 }
 
 class XenonDevice(object):
-    def __init__(self, dev_id, address, local_key=None, dev_type=None, connection_timeout=10):
+    def __init__(self, dev_id, address, local_key=None, dev_type=None, connection_timeout=20):
         """
         Represents a Tuya device.
 
@@ -172,9 +172,24 @@ class XenonDevice(object):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         s.settimeout(self.connection_timeout)
-        s.connect((self.address, self.port))
+        # try /except retry resolve address 
+        try:
+            s.connect((self.address, self.port))
+        except (ConnectionRefusedError, ConnectionAbortedError):
+            for i in range(0, 3):
+                try:
+                    s.connect((self.address, self.port))
+                except (ConnectionRefusedError, ConnectionAbortedError):
+                    pass
+                time.sleep(1)
+
         s.send(payload)
-        data = s.recv(1024)
+        # try/except for resolve connection reset error.
+        try:
+            data = s.recv(1024)
+        except:
+            s.close()
+            return None
         s.close()
         return data
 
@@ -352,13 +367,29 @@ class Device(XenonDevice):
 
     def turn_on(self, switch=1):
         """Turn the device on"""
-        self.set_status(True, switch)
+        if self.set_status(True, switch) == None:
+            for i in range(0, 3):
+                if self.set_status(True, switch) == None:
+                    continue
+                else:
+                    return True
+            return False
+        else:
+            return True
 
     def turn_off(self, switch=1):
         """Turn the device off"""
-        self.set_status(False, switch)
+        if self.set_status(False, switch) == None:
+            for i in range(0, 3):
+                if self.set_status(False, switch) == None:
+                    continue
+                else:
+                    return True
+            return False
+        else:
+            return True
 
-    def set_timer(self, num_secs):
+    def set_timer(self, number_dps, num_secs):
         """
         Set a timer.
 
@@ -372,7 +403,17 @@ class Device(XenonDevice):
         devices = status['dps']
         devices_numbers = list(devices.keys())
         devices_numbers.sort()
-        dps_id = devices_numbers[-1]
+        print(devices_numbers)
+        dps_list = []
+        for dps in devices_numbers:
+            if int(dps) > 5:
+                dps_list.append(int(dps))
+        dps_list.sort()
+
+        if number_dps >= 1 and number_dps <=4:
+            number_dps = number_dps-1
+
+        dps_id = dps_list[number_dps]
 
         payload = self.generate_payload(SET, {dps_id:num_secs})
 
