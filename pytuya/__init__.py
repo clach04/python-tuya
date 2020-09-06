@@ -28,7 +28,7 @@ except ImportError:
     import pyaes  # https://github.com/ricmoo/pyaes
 
 
-version_tuple = (7, 0, 6)
+version_tuple = (7, 0, 4)
 version = version_string = __version__ = '%d.%d.%d' % version_tuple
 __author__ = 'clach04'
 
@@ -50,6 +50,9 @@ STATUS = 'status'
 
 PROTOCOL_VERSION_BYTES_31 = b'3.1'
 PROTOCOL_VERSION_BYTES_33 = b'3.3'
+
+PROTOCOL_VERSION_3_1 = 3.1
+PROTOCOL_VERSION_3_3 = 3.3
 
 IS_PY2 = sys.version_info[0] == 2
 
@@ -74,7 +77,7 @@ class AESCipher(object):
             return base64.b64encode(crypted_text)
         else:
             return crypted_text
-
+            
     def decrypt(self, enc, use_base64=True):
         if use_base64:
             enc = base64.b64decode(enc)
@@ -136,10 +139,10 @@ payload_dict = {
 }
 
 class XenonDevice(object):
-    def __init__(self, dev_id, address, local_key=None, dev_type=None, connection_timeout=20):
+    def __init__(self, dev_id, address, local_key=None, dev_type=None, connection_timeout=10):
         """
         Represents a Tuya device.
-
+        
         Args:
             dev_id (str): The device id.
             address (str): The network address.
@@ -147,7 +150,7 @@ class XenonDevice(object):
             dev_type (str, optional): The device type.
                 It will be used as key for lookups in payload_dict.
                 Defaults to None.
-
+            
         Attributes:
             port (int): The port to connect to.
         """
@@ -167,35 +170,22 @@ class XenonDevice(object):
     def _send_receive(self, payload):
         """
         Send single buffer `payload` and receive a single buffer.
-
+        
         Args:
             payload(bytes): Data to send.
         """
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         s.settimeout(self.connection_timeout)
-        # try /except retry resolve address 
-        try:
-            s.connect((self.address, self.port))
-        except (ConnectionRefusedError, ConnectionAbortedError):
-            for i in range(0, 3):
-                try:
-                    s.connect((self.address, self.port))
-                except (ConnectionRefusedError, ConnectionAbortedError):
-                    pass
-                time.sleep(1)
-
+        s.connect((self.address, self.port))
         s.send(payload)
-        # try/except for resolve connection reset error.
-        try:
-            data = s.recv(1024)
-        except:
-            s.close()
-            return None
+        data = s.recv(1024)
         s.close()
         return data
 
     def set_version(self, version):
+        if (version != PROTOCOL_VERSION_3_1) and (version != PROTOCOL_VERSION_3_3):
+            raise ValueError("Unsupported verison")
         self.version = version
 
     def generate_payload(self, command, data=None):
@@ -229,7 +219,7 @@ class XenonDevice(object):
         json_payload = json_payload.encode('utf-8')
         log.debug('json_payload=%r', json_payload)
 
-        if self.version == 3.3:
+        if self.version == PROTOCOL_VERSION_3_3:
             self.cipher = AESCipher(self.local_key)  # expect to connect and then disconnect to set new
             json_payload = self.cipher.encrypt(json_payload, False)
             self.cipher = None
@@ -267,8 +257,8 @@ class XenonDevice(object):
         #print('postfix_payload %r' % hex(len(postfix_payload)))
         assert len(postfix_payload) <= 0xff
         postfix_payload_hex_len = '%x' % len(postfix_payload)  # TODO this assumes a single byte 0-255 (0x00-0xff)
-        buffer = hex2bin( payload_dict[self.dev_type]['prefix'] +
-                          payload_dict[self.dev_type][command]['hexByte'] +
+        buffer = hex2bin( payload_dict[self.dev_type]['prefix'] + 
+                          payload_dict[self.dev_type][command]['hexByte'] + 
                           '000000' +
                           postfix_payload_hex_len ) + postfix_payload
 
@@ -283,11 +273,11 @@ class XenonDevice(object):
         #print(bin2hex(buffer, pretty=False))
         #print('full buffer(%d) %r' % (len(buffer), " ".join("{:02x}".format(ord(c)) for c in buffer)))
         return buffer
-
+    
 class Device(XenonDevice):
     def __init__(self, dev_id, address, local_key=None, dev_type=None):
         super(Device, self).__init__(dev_id, address, local_key, dev_type)
-
+    
     def status(self):
         log.debug('status() entry')
         # open device, send request, then close connection
@@ -317,7 +307,7 @@ class Device(XenonDevice):
             if not isinstance(result, str):
                 result = result.decode()
             result = json.loads(result)
-        elif self.version == 3.3:
+        elif self.version == PROTOCOL_VERSION_3_3: 
             cipher = AESCipher(self.local_key)
             result = cipher.decrypt(result, False)
             log.debug('decrypted result=%r', result)
@@ -332,7 +322,7 @@ class Device(XenonDevice):
     def set_status(self, on, switch=1):
         """
         Set status of the device to 'on' or 'off'.
-
+        
         Args:
             on(bool):  True for 'on', False for 'off'.
             switch(int): The switch to set
@@ -347,7 +337,7 @@ class Device(XenonDevice):
         log.debug('set_status received data=%r', data)
 
         return data
-
+    
     def set_value(self, index, value):
         """
         Set int value of any index.
@@ -362,39 +352,23 @@ class Device(XenonDevice):
 
         payload = self.generate_payload(SET, {
             index: value})
-
+        
         data = self._send_receive(payload)
-
+        
         return data
-
+    
     def turn_on(self, switch=1):
         """Turn the device on"""
-        if self.set_status(True, switch) == None:
-            for i in range(0, 3):
-                if self.set_status(True, switch) == None:
-                    continue
-                else:
-                    return True
-            return False
-        else:
-            return True
+        self.set_status(True, switch)
 
     def turn_off(self, switch=1):
         """Turn the device off"""
-        if self.set_status(False, switch) == None:
-            for i in range(0, 3):
-                if self.set_status(False, switch) == None:
-                    continue
-                else:
-                    return True
-            return False
-        else:
-            return True
+        self.set_status(False, switch)
 
-    def set_timer(self, number_dps, num_secs):
+    def set_timer(self, num_secs):
         """
         Set a timer.
-
+        
         Args:
             num_secs(int): Number of seconds
         """
@@ -405,17 +379,7 @@ class Device(XenonDevice):
         devices = status['dps']
         devices_numbers = list(devices.keys())
         devices_numbers.sort()
-        print(devices_numbers)
-        dps_list = []
-        for dps in devices_numbers:
-            if int(dps) > 5:
-                dps_list.append(int(dps))
-        dps_list.sort()
-
-        if number_dps >= 1 and number_dps <=4:
-            number_dps = number_dps-1
-
-        dps_id = dps_list[number_dps]
+        dps_id = devices_numbers[-1]
 
         payload = self.generate_payload(SET, {dps_id:num_secs})
 
@@ -438,7 +402,7 @@ class BulbDevice(Device):
     DPS             = 'dps'
     DPS_MODE_COLOUR = 'colour'
     DPS_MODE_WHITE  = 'white'
-
+    
     DPS_2_STATE = {
                 '1':'is_on',
                 '2':'mode',
@@ -455,14 +419,14 @@ class BulbDevice(Device):
     def _rgb_to_hexvalue(r, g, b):
         """
         Convert an RGB value to the hex representation expected by tuya.
-
+        
         Index '5' (DPS_INDEX_COLOUR) is assumed to be in the format:
         rrggbb0hhhssvv
-
+        
         While r, g and b are just hexadecimal values of the corresponding
         Red, Green and Blue values, the h, s and v values (which are values
         between 0 and 1) are scaled to 360 (h) and 255 (s and v) respectively.
-
+        
         Args:
             r(int): Value for the colour red as int from 0-255.
             g(int): Value for the colour green as int from 0-255.
@@ -497,7 +461,7 @@ class BulbDevice(Device):
         """
         Converts the hexvalue used by tuya for colour representation into
         an RGB value.
-
+        
         Args:
             hexvalue(string): The hex representation generated by BulbDevice._rgb_to_hexvalue()
         """
@@ -512,7 +476,7 @@ class BulbDevice(Device):
         """
         Converts the hexvalue used by tuya for colour representation into
         an HSV value.
-
+        
         Args:
             hexvalue(string): The hex representation generated by BulbDevice._rgb_to_hexvalue()
         """
