@@ -2,10 +2,13 @@
 
 [![Build Status](https://travis-ci.org/clach04/python-tuya.svg?branch=master)](https://travis-ci.org/clach04/python-tuya)
 
-NOTE I'm no longer using these devices so this is not actively maintained. https://github.com/codetheweb/tuyapi node.js based is active and being updated on a regular basis.
+NOTE I'm no longer using these devices so this is not actively maintained. 
+
+Similar active projects:
+* TinyTuya (python) - https://github.com/jasonacox/tinytuya is an active fork of pytuya regularly updated by community
+* TuyAPI (node.js) - https://github.com/codetheweb/tuyapi is active and updated as needed to support requests and bug reports. 
 
 An alternative is to reflash the devices (e.g with Tasmota, ESPurna, etc.) using https://github.com/ct-Open-Source/tuya-convert/ or if OTA is not an option over serial, see https://github.com/arendst/Tasmota - these are much better firmwre options. Recommended reading:
-
   * https://lobradov.github.io/FOSS-Firmware-comparison-overview/
       * https://lobradov.github.io/FOSS-Firmware-comparison-developers/
 
