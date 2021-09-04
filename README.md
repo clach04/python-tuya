@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/clach04/python-tuya.svg?branch=master)](https://travis-ci.org/clach04/python-tuya)
 
-NOTE I'm no longer using these devices so this is not actively maintained. 
+NOTE I'm no longer using this library (I flashed my devices with Tasmota instead - it's a way more reliable firmware, even without any WiFi) so this is not actively maintained. 
 
 Similar active projects:
 * TinyTuya (python) - https://github.com/jasonacox/tinytuya is an active fork of pytuya regularly updated by community
