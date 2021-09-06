@@ -36,8 +36,9 @@ def compare_json_strings(json1, json2, ignoring_keys=None):
 
 def check_data_frame(data, expected_prefix, encrypted=True):
     prefix = data[:15]
-    suffix = data[-8:]
-    
+    crc = data[-8:-4]
+    suffix = data[-4:]
+
     if encrypted:
         payload_len = struct.unpack(">B",data[15:16])[0]  # big-endian, unsigned char
         version = data[16:19]
@@ -51,10 +52,10 @@ def check_data_frame(data, expected_prefix, encrypted=True):
     frame_ok = True
     if prefix != pytuya.hex2bin(expected_prefix):
         frame_ok = False
-    elif suffix != pytuya.hex2bin("000000000000aa55"):
+    elif suffix != pytuya.hex2bin("0000aa55"):
         frame_ok = False
     elif encrypted:
-        if payload_len != len(version) + len(checksum) + len(encrypted_json) + len(suffix):
+        if payload_len != len(version) + len(checksum) + len(encrypted_json) + len(crc) + len(suffix):
             frame_ok = False
         elif version != b"3.1":
             frame_ok = False
